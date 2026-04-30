@@ -1,0 +1,38 @@
+{
+  "name": "magic-canvas-offline",
+  "version": "1.0.0",
+  "description": "手势识别魔法画板（离线版）- 基于 MediaPipe 的手势追踪绘画应用",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -o",
+    "dev": "npx http-server . -p 8080 -o --cors",
+    "deploy": "gh-pages -d .",
+    "build": "echo 'No build step required - static site ready!'",
+    "preview": "npm run start"
+  },
+  "keywords": [
+    "mediapipe",
+    "hand-tracking",
+    "canvas",
+    "gesture-recognition",
+    "offline",
+    "github-pages"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/magic-canvas-offline.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/magic-canvas-offline/issues"
+  },
+  "homepage": "https://your-username.github.io/magic-canvas-offline/",
+  "dependencies": {
+    "@mediapipe/hands": "^0.4.1675469240"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "http-server": "^14.1.1"
+  }
+}
