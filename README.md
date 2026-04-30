@@ -3,16 +3,7 @@
 一个基于 MediaPipe Hands 的手势追踪绘画应用，支持离线运行和实时手势交互。
 
 ## ✨ 功能特性
-# 1. 推送源代码到 main 分支
-git push -u origin main
 
-# 2. 安装依赖并部署到 gh-pages 分支
-npm install
-npm run deploy
-
-# 3. 在 GitHub Settings → Pages 中选择 gh-pages 分支
-
-# 4. 访问 https://你的用户名.github.io/magic-canvas-offline/
 - 🖐️ **实时手势追踪**：使用 MediaPipe Hands 模型检测手部关键点
 - 🎨 **魔法绘画**：移动食指进行绘制，粒子效果跟随手势
 - 💥 **能量爆发**：捏合拇指和食指触发爆炸粒子效果
