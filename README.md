@@ -1,4 +1,4 @@
-# MediaPipe 手势识别魔法画板（离线版）
+# MediaPipe 手势识别魔法画板
 
 一个基于 MediaPipe Hands 的手势追踪绘画应用，支持离线运行和实时手势交互。
 
@@ -27,22 +27,25 @@ npm start
 
 ### 部署到 GitHub Pages
 
-```bash
-# 1. 推送源代码到 GitHub
-git remote add origin https://github.com/你的用户名/magic-canvas-offline.git
-git push -u origin main
+#### 方法：使用 gh-pages 分支（推荐）
 
-# 2. 部署到 gh-pages 分支
-npm run deploy
-
-# 3. 在 GitHub Settings → Pages 中配置：
-#    Source: Deploy from a branch
-#    Branch: gh-pages
-#    Folder: / (root)
-
-# 4. 等待 1-2 分钟后访问
-# https://你的用户名.github.io/magic-canvas-offline/
-```
+1. Fork 或克隆此仓库到 GitHub
+2. 推送代码到 `main` 分支：
+   ```bash
+   git remote add origin https://github.com/你的用户名/magic-canvas-offline.git
+   git push -u origin main
+   ```
+3. 部署到 gh-pages 分支：
+   ```bash
+   npm install
+   npm run deploy
+   ```
+4. 在仓库设置中启用 GitHub Pages：
+   - 进入 **Settings** → **Pages**
+   - Source 选择 **Deploy from a branch**
+   - Branch 选择 **gh-pages**
+   - Folder 选择 **/ (root)**
+5. 等待 1-2 分钟后访问 `https://你的用户名.github.io/仓库名`
 
 ## 📖 使用说明
 
@@ -61,7 +64,7 @@ npm run deploy
 - **MediaPipe Hands**：Google 的手部追踪机器学习模型
 - **HTML5 Canvas**：高性能 2D 图形渲染
 - **Vanilla JavaScript**：无框架依赖，纯原生实现
-- **CSS3**：现代化 UI 样式
+- **CSS3**：现代化 UI 样式（Tailwind CSS 类名风格）
 
 ## 📁 项目结构
 
@@ -70,11 +73,14 @@ magic-canvas-offline/
 ├── mediapipe/                   # MediaPipe 离线资源
 │   ├── hands.js                 # 核心库
 │   ├── hands_solution_*.js      # WASM 二进制文件
-│   └── hand_landmark.tflite     # 预训练模型
+│   └── index.d.ts               # TypeScript 类型定义
 ├── .gitignore                   # Git 忽略规则
 ├── index.html                   # 主应用文件
 ├── package.json                 # 项目配置和依赖
-└── README.md                    # 项目文档
+├── README.md                    # 项目文档
+├── DEPLOYMENT.md                # 详细部署指南
+├── QUICK_START.md               # 快速参考
+└── CHECKLIST.md                 # 部署检查清单
 ```
 
 ## ⚙️ 配置说明
@@ -102,7 +108,7 @@ const isPinching = distance < 0.05;  // 减小数值提高灵敏度
 
 ## 🎨 自定义魔法主题
 
-在 `index.html` 的 `offlineMagicThemes` 数组中添加新主题：
+在 `offlineMagicThemes` 数组中添加新主题：
 
 ```javascript
 {
@@ -135,12 +141,11 @@ const isPinching = distance < 0.05;  // 减小数值提高灵敏度
 - 减少粒子数量：调整 `particleCount` 变量
 - 使用 `modelComplexity: 0` 降低模型复杂度
 
-### 部署后页面空白或 404
+### 部署问题
 
-- ✅ 确认 GitHub Pages 设置中选择了 `gh-pages` 分支
-- ✅ 等待 1-2 分钟让 DNS 生效
-- ✅ 按 `Ctrl+F5` 强制刷新浏览器
-- ✅ 检查浏览器控制台（F12）是否有错误
+- 查看 [DEPLOYMENT.md](DEPLOYMENT.md) 获取详细的部署指南
+- 查看 [CHECKLIST.md](CHECKLIST.md) 进行部署前检查
+- 查看 [QUICK_START.md](QUICK_START.md) 获取快速参考
 
 ## 📄 许可证
 
