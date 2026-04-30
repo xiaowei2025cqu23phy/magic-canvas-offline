@@ -22,12 +22,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/magic-canvas-offline.git"
+    "url": "https://github.com/xiaowei2025cqu23phy/magic-canvas-offline.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/magic-canvas-offline/issues"
+    "url": "https://github.com/xiaowei2025cqu23phy/magic-canvas-offline/issues"
   },
-  "homepage": "https://your-username.github.io/magic-canvas-offline/",
+  "homepage": "https://xiaowei2025cqu23phy.github.io/magic-canvas-offline/",
   "dependencies": {
     "@mediapipe/hands": "^0.4.1675469240"
   },
