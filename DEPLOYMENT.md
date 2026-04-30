@@ -1,10 +1,10 @@
-# GitHub Pages 部署指南
+# GitHub Pages 部署指南（分支部署方式）
 
 ## 📋 前置要求
 
 1. GitHub 账号
 2. Git 已安装并配置
-3. Node.js 和 npm（用于本地测试）
+3. Node.js 和 npm（用于本地测试和部署）
 
 ## 🚀 部署步骤
 
@@ -37,46 +37,40 @@ git commit -m "Initial commit: Magic Canvas Offline"
 
 ```bash
 # 添加远程仓库（替换为你的用户名和仓库名）
-git remote add origin https://github.com/你的用户名/magic-canvas-offline.git
+git remote add origin https://github.com/xiaowei2025cqu23phy/magic-canvas-offline.git
 
 # 推送到 main 分支
 git branch -M main
 git push -u origin main
 ```
 
-### 第四步：启用 GitHub Pages
-
-#### 方法 A：使用 GitHub Actions（推荐，自动部署）
-
-1. 推送代码后，GitHub Actions 会自动运行
-2. 进入仓库的 **Actions** 标签页查看部署进度
-3. 首次部署需要手动启用 Pages：
-   - 进入 **Settings** → **Pages**
-   - 在 **Build and deployment** 部分
-   - Source 选择 **GitHub Actions**
-4. 等待部署完成（通常 1-2 分钟）
-5. 访问生成的 URL（格式：`https://你的用户名.github.io/magic-canvas-offline/`）
-
-#### 方法 B：手动部署（使用 gh-pages）
+### 第四步：部署到 gh-pages 分支
 
 ```bash
 # 安装依赖
 npm install
 
-# 运行部署脚本
+# 运行部署命令（会自动创建 gh-pages 分支并推送）
 npm run deploy
 ```
 
-这会自动创建 `gh-pages` 分支并推送。
+这个命令会：
+- 自动创建 `gh-pages` 分支
+- 将所有静态文件推送到该分支
+- 保持 `main` 分支的源代码不变
 
-然后在 GitHub 设置中：
-1. 进入 **Settings** → **Pages**
-2. Source 选择 **Deploy from a branch**
-3. Branch 选择 `gh-pages`
-4. Folder 选择 `/ (root)`
-5. 点击 **Save**
+### 第五步：启用 GitHub Pages
 
-### 第五步：验证部署
+1. 进入仓库的 **Settings** → **Pages**
+2. 在 **Build and deployment** 部分：
+   - Source 选择 **Deploy from a branch**
+   - Branch 选择 **gh-pages**
+   - Folder 选择 **/ (root)**
+3. 点击 **Save**
+4. 等待 1-2 分钟让 DNS 生效
+5. 访问生成的 URL（格式：`https://你的用户名.github.io/magic-canvas-offline/`）
+
+### 第六步：验证部署
 
 1. 访问你的 GitHub Pages URL
 2. 允许摄像头权限
@@ -84,21 +78,25 @@ npm run deploy
 
 ## 🔧 常见问题
 
-### 1. GitHub Actions 没有自动运行
+### 1. gh-pages 分支没有创建
 
 **解决方案：**
-- 检查 `.github/workflows/deploy.yml` 是否存在
-- 确认推送到的是 `main` 或 `master` 分支
-- 进入 **Settings** → **Actions** → **General**
-- 确保选择了 **Allow all actions and reusable workflows**
+```bash
+# 手动检查分支
+git branch -a
+
+# 如果 gh-pages 不存在，重新运行
+npm run deploy
+```
 
 ### 2. 部署后页面显示 404
 
 **解决方案：**
 - 确认仓库是 **Public**（公开）
-- 检查 GitHub Pages 设置中的 Source 配置
+- 检查 GitHub Pages 设置中的 Branch 是否选择了 `gh-pages`
 - 等待 1-2 分钟让 DNS 生效
 - 清除浏览器缓存或使用无痕模式访问
+- 检查浏览器控制台是否有 404 错误
 
 ### 3. MediaPipe 资源加载失败
 
@@ -118,7 +116,25 @@ npm run deploy
 - 确保用户点击"允许"摄像头权限
 - 某些浏览器可能在 localhost 以外阻止摄像头，尝试使用 Chrome/Edge
 
-### 5. 自定义域名
+### 5. 更新后看不到变化
+
+**解决方案：**
+```bash
+# 修改代码后，重新部署
+git add .
+git commit -m "描述你的更改"
+git push
+
+# 重新部署到 gh-pages
+npm run deploy
+```
+
+然后：
+- 按 `Ctrl+F5` 强制刷新浏览器
+- 或清除浏览器缓存
+- 或使用无痕模式测试
+
+### 6. 自定义域名
 
 如果想使用自定义域名：
 
@@ -136,54 +152,52 @@ npm run deploy
 
 ## 📊 监控部署状态
 
-### 查看构建日志
-
-1. 进入仓库的 **Actions** 标签页
-2. 点击最近的工作流运行
-3. 查看 `build` 和 `deploy` 任务的详细日志
-
-### 检查部署状态
+### 查看 gh-pages 分支
 
 ```bash
-# 查看当前分支
-git branch
+# 查看所有分支
+git branch -a
 
-# 查看远程仓库
-git remote -v
-
-# 查看最近的提交
-git log --oneline -5
+# 应该看到：
+# * main
+#   remotes/origin/gh-pages
 ```
 
-## 🔄 更新部署
-
-每次推送到 `main` 分支时，GitHub Actions 会自动重新部署：
+### 检查部署历史
 
 ```bash
-# 修改代码后
-git add .
-git commit -m "描述你的更改"
-git push
+# 查看 gh-pages 分支的提交历史
+git log gh-pages --oneline -5
 ```
 
-自动部署流程：
-1. 触发 GitHub Actions
-2. 安装依赖
-3. 上传静态文件到 Pages
-4. 自动发布到 `https://你的用户名.github.io/magic-canvas-offline/`
+### 查看文件大小
+
+```bash
+# 确保没有上传不必要的文件
+du -sh mediapipe/*
+```
 
 ## 💡 优化建议
 
-### 减小仓库体积
+### 减小 gh-pages 分支体积
 
-MediaPipe 的 WASM 文件较大，但 GitHub Pages 有 1GB 的限制，通常足够。
+`.gitignore` 已经排除了 `node_modules/`，但如果你发现分支太大：
 
-如果需要优化：
 ```bash
-# 查看文件大小
-du -sh mediapipe/*
+# 查看 gh-pages 分支大小
+git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | sed -n 's/^blob //p' | sort -rnk2 | head -n 10
+```
 
-# 如果太大，考虑使用 CDN（但这会失去离线能力）
+### 清理旧的部署
+
+如果 gh-pages 分支积累了太多历史：
+
+```bash
+# 使用 --dotfiles 参数只部署必要文件
+npx gh-pages -d . --dotfiles
+
+# 或者清理后重新部署
+npx gh-pages -d . --remove "**/*"
 ```
 
 ### 添加版本号
@@ -195,9 +209,66 @@ du -sh mediapipe/*
 }
 ```
 
-### 添加 CHANGELOG
+每次部署前更新版本号：
+```bash
+npm version patch  # 小更新
+npm version minor  # 新功能
+npm version major  # 重大变更
+```
 
-创建 `CHANGELOG.md` 记录版本更新历史。
+## 🔄 更新部署流程
+
+每次修改代码后的完整流程：
+
+```bash
+# 1. 提交到 main 分支
+git add .
+git commit -m "描述你的更改"
+git push
+
+# 2. 部署到 gh-pages 分支
+npm run deploy
+
+# 3. 等待 1-2 分钟后访问网站
+```
+
+**自动化脚本（可选）：**
+
+创建 `deploy.sh`（Linux/Mac）或 `deploy.bat`（Windows）：
+
+```bash
+#!/bin/bash
+# deploy.sh
+git add .
+git commit -m "$1"
+git push
+npm run deploy
+echo "✅ 部署完成！访问: https://你的用户名.github.io/magic-canvas-offline/"
+```
+
+使用方法：
+```bash
+./deploy.sh "添加了新功能"
+```
+
+## ⚠️ 重要注意事项
+
+1. **gh-pages 分支是自动管理的**
+   - 不要手动修改 gh-pages 分支
+   - 每次运行 `npm run deploy` 会覆盖之前的内容
+   - main 分支保留完整的开发历史
+
+2. **部署的是构建产物**
+   - gh-pages 分支只包含静态文件（HTML、CSS、JS、图片等）
+   - 不包含 `.git`、`node_modules`、配置文件等
+
+3. **首次部署时间**
+   - 第一次部署可能需要 2-5 分钟
+   - 后续更新通常只需 1-2 分钟
+
+4. **摄像头权限**
+   - GitHub Pages 使用 HTTPS，浏览器会要求授权
+   - 用户必须点击"允许"才能使用手势识别
 
 ## 🎉 完成！
 
@@ -210,4 +281,4 @@ https://你的用户名.github.io/magic-canvas-offline/
 
 ---
 
-**提示：** 首次部署可能需要几分钟时间，请耐心等待。如果遇到任何问题，请检查 GitHub Actions 的日志获取详细错误信息。
+**提示：** 分支部署方式简单可靠，适合静态网站。如果需要更复杂的构建流程，可以考虑切换到 GitHub Actions。

@@ -1,4 +1,4 @@
-# MediaPipe 手势识别魔法画板（离线版）
+# MediaPipe 手势识别魔法画板
 
 一个基于 MediaPipe Hands 的手势追踪绘画应用，支持离线运行和实时手势交互。
 
@@ -27,25 +27,25 @@ npm start
 
 ### 部署到 GitHub Pages
 
-#### 方法一：自动部署（推荐）
+#### 方法：使用 gh-pages 分支（推荐）
 
 1. Fork 或克隆此仓库到 GitHub
-2. 推送代码到 `main` 或 `master` 分支
-3. GitHub Actions 会自动构建并部署
+2. 推送代码到 `main` 分支：
+   ```bash
+   git remote add origin https://github.com/你的用户名/magic-canvas-offline.git
+   git push -u origin main
+   ```
+3. 部署到 gh-pages 分支：
+   ```bash
+   npm install
+   npm run deploy
+   ```
 4. 在仓库设置中启用 GitHub Pages：
    - 进入 **Settings** → **Pages**
-   - Source 选择 **GitHub Actions**
-5. 访问 `https://你的用户名.github.io/仓库名`
-
-#### 方法二：手动部署
-
-```bash
-# 安装 gh-pages 工具
-npm install
-
-# 构建并部署
-npm run deploy
-```
+   - Source 选择 **Deploy from a branch**
+   - Branch 选择 **gh-pages**
+   - Folder 选择 **/ (root)**
+5. 等待 1-2 分钟后访问 `https://你的用户名.github.io/仓库名`
 
 ## 📖 使用说明
 
@@ -70,16 +70,17 @@ npm run deploy
 
 ```
 magic-canvas-offline/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml          # GitHub Actions 部署配置
 ├── mediapipe/                   # MediaPipe 离线资源
 │   ├── hands.js                 # 核心库
 │   ├── hands_solution_*.js      # WASM 二进制文件
 │   └── index.d.ts               # TypeScript 类型定义
+├── .gitignore                   # Git 忽略规则
 ├── index.html                   # 主应用文件
 ├── package.json                 # 项目配置和依赖
-└── README.md                    # 项目文档
+├── README.md                    # 项目文档
+├── DEPLOYMENT.md                # 详细部署指南
+├── QUICK_START.md               # 快速参考
+└── CHECKLIST.md                 # 部署检查清单
 ```
 
 ## ⚙️ 配置说明
@@ -139,6 +140,12 @@ const isPinching = distance < 0.05;  // 减小数值提高灵敏度
 - 降低视频分辨率：修改 `getUserMedia` 中的 `width/height`
 - 减少粒子数量：调整 `particleCount` 变量
 - 使用 `modelComplexity: 0` 降低模型复杂度
+
+### 部署问题
+
+- 查看 [DEPLOYMENT.md](DEPLOYMENT.md) 获取详细的部署指南
+- 查看 [CHECKLIST.md](CHECKLIST.md) 进行部署前检查
+- 查看 [QUICK_START.md](QUICK_START.md) 获取快速参考
 
 ## 📄 许可证
 
