@@ -315,9 +315,32 @@
 
             async function startCam() {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+                    // 检查浏览器是否支持 getUserMedia
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('您的浏览器不支持摄像头访问功能。请使用 Chrome、Edge、Firefox 或 Safari 的最新版本。');
+                    }
+                    
+                    console.log('📸 正在请求摄像头权限...');
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'user'
+                        } 
+                    });
+                    
+                    console.log('✅ 摄像头权限已授予');
                     videoElement.srcObject = stream;
-                    videoElement.play();
+                    
+                    // 等待视频元素准备好
+                    await new Promise((resolve, reject) => {
+                        videoElement.onloadedmetadata = resolve;
+                        videoElement.onerror = reject;
+                        setTimeout(() => reject(new Error('视频加载超时')), 5000);
+                    });
+                    
+                    await videoElement.play();
+                    console.log('▶️ 视频流已开始播放');
 
                     async function sendFrame() {
                         if (videoElement.readyState >= 2) {
@@ -327,7 +350,38 @@
                     }
                     sendFrame();
                 } catch (err) {
-                    console.error("摄像头错误:", err);
+                    console.error("❌ 摄像头错误:", err);
+                    console.error("错误名称:", err.name);
+                    console.error("错误消息:", err.message);
+                    
+                    // 根据错误类型提供具体建议
+                    let errorMessage = '无法访问摄像头。';
+                    
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        errorMessage = '摄像头权限被拒绝。请点击浏览器地址栏左侧的 🔒 图标，将摄像头权限改为"允许"，然后刷新页面。';
+                    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                        errorMessage = '未找到摄像头设备。请确认摄像头已正确连接，并在系统设置中启用摄像头。';
+                    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                        errorMessage = '摄像头被其他应用占用。请关闭 Zoom、Teams、微信等可能使用摄像头的程序，然后刷新页面。';
+                    } else if (err.name === 'OverconstrainedError') {
+                        errorMessage = '摄像头不支持请求的分辨率。尝试降低分辨率设置。';
+                    } else if (err.message.includes('secure context') || window.location.protocol === 'file:') {
+                        errorMessage = '安全限制：请通过 http://localhost:8080 访问，不要直接双击打开 HTML 文件（file:// 协议）。运行命令：npm run dev';
+                    }
+                    
+                    // 更新错误屏幕显示
+                    errorScreen.querySelector('h2').textContent = '摄像头访问失败';
+                    errorScreen.querySelector('p').innerHTML = `
+                        <div class="text-left space-y-2">
+                            <p class="text-red-400 font-mono text-sm">${err.name}: ${err.message}</p>
+                            <hr class="border-slate-700 my-3"/>
+                            <p>${errorMessage}</p>
+                            <hr class="border-slate-700 my-3"/>
+                            <p class="text-xs text-slate-500">
+                                💡 提示：打开浏览器开发者工具（F12）→ Console 标签查看更多调试信息
+                            </p>
+                        </div>
+                    `;
                     errorScreen.classList.remove('hidden');
                 }
             }
