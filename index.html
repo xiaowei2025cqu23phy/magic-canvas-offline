@@ -54,6 +54,7 @@
                 <button id="summon-magic" class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-sm font-bold shadow-lg transition-all flex items-center gap-1">
                     ✨ 召唤新魔法（离线随机）
                 </button>
+                <button id="debug-camera" class="px-4 py-2 bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/40 rounded-lg text-sm transition-colors border border-yellow-600/30">🔧 调试摄像头</button>
             </div>
             
             <div id="video-container" class="hidden w-48 rounded-xl overflow-hidden border-2 border-slate-600 shadow-xl">
@@ -67,7 +68,7 @@
         <svg class="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
         <h2 class="text-2xl font-bold mb-2">无法访问摄像头</h2>
         <p class="text-slate-400 max-w-lg">
-            手势识别需要摄像头权限。请在浏览器提示中点击“允许”，或检查设备设置。
+            手势识别需要摄像头权限。请在浏览器提示中点击"允许"，或检查设备设置。
             <br/><br/>
             注意：请通过 http://localhost 访问，不要直接双击打开文件。
         </p>
@@ -75,6 +76,42 @@
             刷新重试
         </button>
     </div>
+
+    <!-- 调试面板（临时添加） -->
+    <div id="debug-panel" class="absolute top-20 right-6 z-30 bg-slate-800/90 backdrop-blur border border-slate-600 p-4 rounded-xl shadow-lg hidden pointer-events-auto max-w-sm">
+        <h3 class="text-lg font-bold text-cyan-400 mb-3">🔧 摄像头调试工具</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-slate-300">协议:</span>
+                <span id="debug-protocol" class="font-mono text-yellow-400"></span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-300">MediaDevices API:</span>
+                <span id="debug-api" class="font-mono"></span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-300">视频设备数量:</span>
+                <span id="debug-devices" class="font-mono text-cyan-400"></span>
+            </div>
+        </div>
+        <div class="mt-4 space-y-2">
+            <button id="test-camera-btn" class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium transition-colors">
+                📸 测试摄像头
+            </button>
+            <button id="list-devices-btn" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
+                📋 列出所有设备
+            </button>
+            <button id="close-debug-btn" class="w-full px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg text-sm transition-colors">
+                关闭
+            </button>
+        </div>
+        <div id="debug-output" class="mt-3 p-2 bg-slate-900/50 rounded text-xs font-mono text-slate-300 max-h-40 overflow-y-auto whitespace-pre-wrap"></div>
+    </div>
+
+    <!-- 调试开关按钮 -->
+    <button id="toggle-debug" class="absolute top-6 right-6 z-30 px-3 py-1 bg-purple-600/80 hover:bg-purple-500 rounded-lg text-xs font-medium transition-colors pointer-events-auto">
+        🔧 调试模式
+    </button>
 
     <script>
         // --- DOM 元素 ---
@@ -101,6 +138,123 @@
         document.getElementById('toggle-skeleton').addEventListener('click', (e) => {
             showSkeleton = !showSkeleton;
             e.target.textContent = showSkeleton ? '隐藏骨骼' : '显示骨骼';
+        });
+
+        // --- 调试功能 ---
+        const debugPanel = document.getElementById('debug-panel');
+        const toggleDebugBtn = document.getElementById('toggle-debug');
+        const debugOutput = document.getElementById('debug-output');
+        
+        function log(message) {
+            console.log(message);
+            debugOutput.textContent += message + '\n';
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+
+        toggleDebugBtn.addEventListener('click', () => {
+            debugPanel.classList.toggle('hidden');
+            if (!debugPanel.classList.contains('hidden')) {
+                // 更新调试信息
+                document.getElementById('debug-protocol').textContent = window.location.protocol;
+                document.getElementById('debug-api').textContent = navigator.mediaDevices ? '✅ 支持' : '❌ 不支持';
+                
+                // 获取视频设备数量
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    navigator.mediaDevices.enumerateDevices()
+                        .then(devices => {
+                            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                            document.getElementById('debug-devices').textContent = videoDevices.length;
+                            log(`📹 发现 ${videoDevices.length} 个视频设备`);
+                            videoDevices.forEach((device, idx) => {
+                                log(`   ${idx + 1}. ${device.label || `摄像头 ${idx + 1}`} (${device.deviceId.substring(0, 8)}...)`);
+                            });
+                        })
+                        .catch(err => {
+                            document.getElementById('debug-devices').textContent = '无法获取';
+                            log(`❌ 枚举设备失败: ${err.message}`);
+                        });
+                }
+            }
+        });
+
+        document.getElementById('close-debug-btn').addEventListener('click', () => {
+            debugPanel.classList.add('hidden');
+        });
+
+        document.getElementById('test-camera-btn').addEventListener('click', async () => {
+            log('\n🧪 开始测试摄像头...');
+            
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('浏览器不支持 getUserMedia API');
+                }
+                
+                log('✓ API 检查通过');
+                log('📸 请求摄像头权限...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                log('✅ 权限已授予！');
+                log(`📊 视频流轨道数: ${stream.getVideoTracks().length}`);
+                
+                const track = stream.getVideoTracks()[0];
+                const settings = track.getSettings();
+                log(`📐 分辨率: ${settings.width}x${settings.height}`);
+                log(`🎬 帧率: ${settings.frameRate || '未知'}`);
+                log(`📷 设备: ${track.label || '未知'}`);
+                
+                // 停止测试流
+                stream.getTracks().forEach(t => t.stop());
+                log('✓ 测试完成，摄像头工作正常！');
+                
+                alert('✅ 摄像头测试成功！\n\n如果页面仍无法使用，请刷新页面并允许摄像头权限。');
+                
+            } catch (err) {
+                log(`❌ 错误类型: ${err.name}`);
+                log(`❌ 错误信息: ${err.message}`);
+                
+                let suggestion = '';
+                if (err.name === 'NotAllowedError') {
+                    suggestion = '💡 建议：点击地址栏左侧的 🔒 图标，将摄像头权限改为"允许"';
+                } else if (err.name === 'NotFoundError') {
+                    suggestion = '💡 建议：检查系统设置中摄像头是否启用';
+                } else if (err.name === 'NotReadableError') {
+                    suggestion = '💡 建议：关闭其他使用摄像头的程序（Zoom、微信等）';
+                }
+                
+                if (suggestion) {
+                    log(suggestion);
+                    alert(`❌ 摄像头测试失败\n\n${err.name}: ${err.message}\n\n${suggestion}`);
+                } else {
+                    alert(`❌ 摄像头测试失败\n\n${err.name}: ${err.message}`);
+                }
+            }
+        });
+
+        document.getElementById('list-devices-btn').addEventListener('click', async () => {
+            log('\n📋 扫描所有媒体设备...');
+            
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                log(`总计发现 ${devices.length} 个设备:\n`);
+                
+                devices.forEach((device, idx) => {
+                    const icon = device.kind === 'videoinput' ? '📹' : 
+                                 device.kind === 'audioinput' ? '🎤' : '🔊';
+                    log(`${icon} ${idx + 1}. ${device.kind}`);
+                    log(`   标签: ${device.label || '(需要权限才能显示)'}`);
+                    log(`   ID: ${device.deviceId.substring(0, 16)}...`);
+                    log(`   Group: ${device.groupId.substring(0, 16)}...`);
+                });
+                
+            } catch (err) {
+                log(`❌ 扫描失败: ${err.message}`);
+            }
         });
 
         // --- 画布尺寸 ---
@@ -178,6 +332,163 @@
             particles = [];
             canvasCtx.fillStyle = '#0f172a';
             canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+        });
+
+        // --- 摄像头调试功能 ---
+        const debugBtn = document.getElementById('debug-camera');
+        let debugWindow = null;
+
+        debugBtn.addEventListener('click', async () => {
+            console.log('\n=== 🔧 开始摄像头诊断 ===\n');
+            
+            // 创建或聚焦调试窗口
+            if (debugWindow && !debugWindow.closed) {
+                debugWindow.focus();
+                return;
+            }
+            
+            debugWindow = window.open('', 'CameraDebug', 'width=600,height=800,scrollbars=yes');
+            
+            const writeLog = (msg, type = 'info') => {
+                const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+                debugWindow.document.write(`<div style="color: ${color}; font-family: monospace; margin: 5px 0;">${msg}</div>`);
+                console.log(msg);
+            };
+            
+            writeLog('<h2>🔧 摄像头诊断报告</h2>', 'info');
+            writeLog(`<p><strong>时间:</strong> ${new Date().toLocaleString()}</p>`);
+            writeLog(`<p><strong>URL:</strong> ${window.location.href}</p>`);
+            writeLog(`<p><strong>协议:</strong> ${window.location.protocol}</p>`);
+            writeLog('<hr/>');
+            
+            // 检查 1: 浏览器支持
+            writeLog('<h3>1️⃣ 浏览器兼容性检查</h3>');
+            if (!navigator.mediaDevices) {
+                writeLog('❌ navigator.mediaDevices 不存在', 'error');
+                writeLog('💡 您的浏览器不支持现代媒体设备 API，请升级到最新版 Chrome/Edge/Firefox', 'error');
+                return;
+            }
+            writeLog('✅ navigator.mediaDevices 可用', 'success');
+            
+            if (!navigator.mediaDevices.getUserMedia) {
+                writeLog('❌ getUserMedia 方法不存在', 'error');
+                return;
+            }
+            writeLog('✅ getUserMedia 方法可用', 'success');
+            
+            // 检查 2: 权限状态
+            writeLog('<h3>2️⃣ 权限状态检查</h3>');
+            try {
+                if (navigator.permissions) {
+                    const permission = await navigator.permissions.query({ name: 'camera' });
+                    writeLog(`📋 摄像头权限状态: <strong>${permission.state}</strong>`);
+                    if (permission.state === 'denied') {
+                        writeLog('❌ 权限已被拒绝', 'error');
+                        writeLog('💡 请点击地址栏左侧的 🔒 图标 → 摄像头 → 改为"允许"', 'error');
+                    } else if (permission.state === 'granted') {
+                        writeLog('✅ 权限已授予', 'success');
+                    } else {
+                        writeLog('⚠️ 权限状态为 prompt（需要用户确认）', 'info');
+                    }
+                } else {
+                    writeLog('⚠️ 浏览器不支持 Permissions API，无法检测权限状态');
+                }
+            } catch (e) {
+                writeLog(`⚠️ 权限检查失败: ${e.message}`);
+            }
+            
+            // 检查 3: 可用设备列表
+            writeLog('<h3>3️⃣ 可用摄像头设备</h3>');
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                
+                if (videoDevices.length === 0) {
+                    writeLog('❌ 未检测到任何摄像头设备', 'error');
+                    writeLog('💡 请检查：1.摄像头是否正确连接 2.系统设置中是否启用摄像头 3.驱动是否正常', 'error');
+                } else {
+                    writeLog(`✅ 检测到 ${videoDevices.length} 个摄像头设备`, 'success');
+                    videoDevices.forEach((device, index) => {
+                        writeLog(`   📷 设备 ${index + 1}: ${device.label || '未知设备'} (ID: ${device.deviceId.substring(0, 8)}...)`);
+                    });
+                }
+            } catch (e) {
+                writeLog(`❌ 枚举设备失败: ${e.message}`, 'error');
+            }
+            
+            // 检查 4: 实际测试摄像头
+            writeLog('<h3>4️⃣ 摄像头访问测试</h3>');
+            writeLog('⏳ 正在尝试访问摄像头...');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                writeLog('✅ 成功获取摄像头视频流！', 'success');
+                
+                // 显示视频预览
+                const tracks = stream.getVideoTracks();
+                writeLog(`<p>📹 视频轨道信息:</p>`);
+                tracks.forEach(track => {
+                    const settings = track.getSettings();
+                    writeLog(`   - 分辨率: ${settings.width}x${settings.height}`);
+                    writeLog(`   - 帧率: ${settings.frameRate || '未知'} fps`);
+                    writeLog(`   -  facingMode: ${settings.facingMode || '未知'}`);
+                });
+                
+                // 创建视频预览
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.muted = true;
+                video.srcObject = stream;
+                video.style.width = '100%';
+                video.style.marginTop = '10px';
+                video.style.border = '2px solid green';
+                video.style.borderRadius = '8px';
+                debugWindow.document.body.appendChild(video);
+                
+                writeLog('<p style="color: green; margin-top: 10px;">✅ 摄像头工作正常！如果上方能看到视频画面，说明硬件和权限都没问题。</p>', 'success');
+                
+                // 3秒后停止视频流
+                setTimeout(() => {
+                    stream.getTracks().forEach(track => track.stop());
+                    writeLog('<p>🛑 视频流已停止（测试完成）</p>');
+                }, 5000);
+                
+            } catch (err) {
+                writeLog(`❌ 摄像头访问失败`, 'error');
+                writeLog(`<p><strong>错误名称:</strong> ${err.name}</p>`, 'error');
+                writeLog(`<p><strong>错误消息:</strong> ${err.message}</p>`, 'error');
+                
+                writeLog('<h4>🔍 错误原因分析：</h4>');
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    writeLog('📌 权限被拒绝', 'error');
+                    writeLog('💡 解决方法：点击地址栏左侧的 🔒 锁图标 → 找到"摄像头" → 从下拉菜单选择"允许" → 刷新页面');
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    writeLog('📌 找不到摄像头设备', 'error');
+                    writeLog('💡 解决方法：1.检查摄像头是否被其他程序占用 2.在 Windows 设置→隐私→相机中启用摄像头 3.更新摄像头驱动');
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    writeLog('📌 摄像头被占用或无法读取', 'error');
+                    writeLog('💡 解决方法：关闭所有可能使用摄像头的程序（Zoom、Teams、微信、QQ等），然后刷新页面');
+                } else if (err.name === 'OverconstrainedError') {
+                    writeLog('📌 请求的视频参数不被支持', 'error');
+                    writeLog('💡 解决方法：降低分辨率要求或移除高级约束条件');
+                } else if (err.name === 'SecurityError') {
+                    writeLog('📌 安全限制', 'error');
+                    writeLog('💡 解决方法：必须通过 http://localhost 或 https:// 访问，不能使用 file:// 协议');
+                } else {
+                    writeLog(`📌 未知错误类型: ${err.name}`);
+                    writeLog('💡 建议：查看浏览器控制台（F12）获取更多信息');
+                }
+            }
+            
+            writeLog('<hr/>');
+            writeLog('<p style="font-size: 12px; color: gray;">诊断完成。如果仍有问题，请将此报告截图发给技术支持。</p>');
+            debugWindow.document.close();
         });
 
         const summonBtn = document.getElementById('summon-magic');
