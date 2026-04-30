@@ -5,21 +5,34 @@
   "main": "index.html",
   "scripts": {
     "start": "npx http-server . -p 8080 -o",
-    "deploy": "gh-pages -d ."
+    "dev": "npx http-server . -p 8080 -o --cors",
+    "deploy": "gh-pages -d .",
+    "build": "echo 'No build step required - static site ready!'",
+    "preview": "npm run start"
   },
   "keywords": [
     "mediapipe",
     "hand-tracking",
     "canvas",
     "gesture-recognition",
-    "offline"
+    "offline",
+    "github-pages"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/magic-canvas-offline.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/magic-canvas-offline/issues"
+  },
+  "homepage": "https://your-username.github.io/magic-canvas-offline/",
   "dependencies": {
     "@mediapipe/hands": "^0.4.1675469240"
   },
   "devDependencies": {
-    "gh-pages": "^6.3.0"
+    "gh-pages": "^6.1.1",
+    "http-server": "^14.1.1"
   }
 }
