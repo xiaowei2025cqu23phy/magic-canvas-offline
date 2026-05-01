@@ -30,13 +30,15 @@
             position: relative !important;
         }
         
-        /* 视频元素样式 - 移除 transform 避免渲染冲突 */
+        /* 视频元素样式 - 隐藏但保持渲染 */
         #input-video {
-            display: block !important;
-            width: 100% !important;
-            height: auto !important;
-            background: #000 !important;
-            object-fit: cover !important;
+            opacity: 0;
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+            top: 0;
+            left: 0;
         }
     </style>
     
@@ -45,7 +47,7 @@
 </head>
 <body>
     <!-- 隐藏的视频元素（用于 MediaPipe 处理） -->
-    <video id="input-video" style="display: none;" autoplay playsinline muted></video>
+    <video id="input-video" autoplay playsinline muted></video>
 
     <!-- 画布容器 -->
     <div class="absolute inset-0 z-10 pointer-events-none">
@@ -91,8 +93,7 @@
             </div>
             
             <div id="video-container" class="w-48 rounded-xl overflow-hidden border-2 border-slate-600 shadow-xl" style="position: relative; z-index: 50;">
-                <video id="input-video" class="w-full h-auto" autoplay playsinline muted style="opacity: 0; position: absolute; top: 0; left: 0; pointer-events: none;"></video>
-                <canvas id="video-preview" style="display: block; width: 100%; height: auto; background: red;"></canvas>
+                <canvas id="video-preview" style="display: block; width: 100%; height: auto; background: #000;"></canvas>
             </div>
         </div>
     </div>
@@ -154,7 +155,7 @@
         const canvasCtx = canvasElement.getContext('2d', { alpha: false });
         
         console.log('🎯 初始化检查:');
-        console.log('  videoElement:', videoElement ? '✅ 已获取' : ' 未找到');
+        console.log('  videoElement:', videoElement ? '✅ 已获取' : '❌ 未找到');
         console.log('  canvasElement:', canvasElement ? '✅ 已获取' : '❌ 未找到');
         console.log('  canvasCtx:', canvasCtx ? '✅ 已获取' : '❌ 未找到');
         
@@ -386,7 +387,6 @@
         debugBtn.addEventListener('click', async () => {
             console.log('\n=== 🔧 开始摄像头诊断 ===\n');
             
-            // 创建或聚焦调试窗口
             if (debugWindow && !debugWindow.closed) {
                 debugWindow.focus();
                 return;
@@ -406,8 +406,6 @@
             writeLog(`<p><strong>协议:</strong> ${window.location.protocol}</p>`);
             writeLog('<hr/>');
             
-            // 检查 1: 浏览器支持
-            writeLog('<h3>1️⃣ 浏览器兼容性检查</h3>');
             if (!navigator.mediaDevices) {
                 writeLog('❌ navigator.mediaDevices 不存在', 'error');
                 writeLog('💡 您的浏览器不支持现代媒体设备 API，请升级到最新版 Chrome/Edge/Firefox', 'error');
@@ -421,8 +419,6 @@
             }
             writeLog('✅ getUserMedia 方法可用', 'success');
             
-            // 检查 2: 权限状态
-            writeLog('<h3>2️⃣ 权限状态检查</h3>');
             try {
                 if (navigator.permissions) {
                     const permission = await navigator.permissions.query({ name: 'camera' });
@@ -442,7 +438,6 @@
                 writeLog(`⚠️ 权限检查失败: ${e.message}`);
             }
             
-            // 检查 3: 可用设备列表
             writeLog('<h3>3️⃣ 可用摄像头设备</h3>');
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
@@ -461,7 +456,6 @@
                 writeLog(`❌ 枚举设备失败: ${e.message}`, 'error');
             }
             
-            // 检查 4: 实际测试摄像头
             writeLog('<h3>4️⃣ 摄像头访问测试</h3>');
             writeLog('⏳ 正在尝试访问摄像头...');
             
@@ -475,7 +469,6 @@
                 
                 writeLog('✅ 成功获取摄像头视频流！', 'success');
                 
-                // 显示视频预览
                 const tracks = stream.getVideoTracks();
                 writeLog(`<p>📹 视频轨道信息:</p>`);
                 tracks.forEach(track => {
@@ -485,7 +478,6 @@
                     writeLog(`   -  facingMode: ${settings.facingMode || '未知'}`);
                 });
                 
-                // 创建视频预览
                 const video = document.createElement('video');
                 video.autoplay = true;
                 video.muted = true;
@@ -498,7 +490,6 @@
                 
                 writeLog('<p style="color: green; margin-top: 10px;">✅ 摄像头工作正常！如果上方能看到视频画面，说明硬件和权限都没问题。</p>', 'success');
                 
-                // 3秒后停止视频流
                 setTimeout(() => {
                     stream.getTracks().forEach(track => track.stop());
                     writeLog('<p>🛑 视频流已停止（测试完成）</p>');
@@ -561,7 +552,7 @@
             [5,9],[9,13],[13,17] // 手掌内部
         ];
 
-        // --- 绘制骨骼和关键点（自定义，不依赖 drawing_utils）---
+        // --- 绘制骨骼和关键点（自定义）---
         function drawSkeleton(ctx, landmarks, isPinching, canvasWidth, canvasHeight) {
             // 绘制连接线
             ctx.beginPath();
@@ -688,11 +679,13 @@
                     statusText.textContent = '模型就绪，请伸出手';
                 }
                 handData = results;
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    console.log('🖐️ 检测到手部，数量:', results.multiHandLandmarks.length);
+                }
             });
 
             async function startCam() {
                 try {
-                    // 检查浏览器是否支持 getUserMedia
                     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                         throw new Error('您的浏览器不支持摄像头访问功能。请使用 Chrome、Edge、Firefox 或 Safari 的最新版本。');
                     }
@@ -700,7 +693,7 @@
                     console.log('📸 正在请求摄像头权限...');
                     const stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
-                            width: { ideal: 640 },  // 降低分辨率
+                            width: { ideal: 640 },
                             height: { ideal: 480 },
                             facingMode: 'user'
                         } 
@@ -710,137 +703,37 @@
                     console.log('📊 视频流轨道数:', stream.getVideoTracks().length);
                     console.log('📹 视频轨道信息:', stream.getVideoTracks()[0].getSettings());
                     
-                    // 强制绑定视频流 - 使用 requestAnimationFrame 确保在渲染周期内
+                    videoElement.srcObject = stream;
+                    console.log('📹 视频流已绑定到 video 元素');
+                    
+                    // 等待视频元数据加载
                     await new Promise((resolve, reject) => {
-                        requestAnimationFrame(async () => {
-                            try {
-                                videoElement.srcObject = stream;
-                                console.log(' 视频流已绑定到 video 元素');
-                                console.log(' MediaStream ID:', stream.id);
-                                console.log(' MediaStream 激活状态:', stream.active);
-                                
-                                // 强制刷新
-                                videoElement.load();
-                                
-                                // 等待视频元数据加载
-                                videoElement.onloadedmetadata = async () => {
-                                    console.log(' 视频元数据已加载');
-                                    console.log('📏 视频尺寸:', videoElement.videoWidth, 'x', videoElement.videoHeight);
-                                    
-                                    // 多次尝试播放，确保浏览器接收到播放请求
-                                    const tryPlay = async (attempt = 1) => {
-                                        try {
-                                            await videoElement.play();
-                                            console.log(`✅ 播放成功 (尝试 ${attempt} 次)`);
-                                            
-                                            // 播放成功后，启动 canvas 渲染
-                                            const previewCanvas = document.getElementById('video-preview');
-                                            const previewCtx = previewCanvas.getContext('2d');
-                                            
-                                            // 设置 canvas 尺寸与视频一致
-                                            previewCanvas.width = videoElement.videoWidth;
-                                            previewCanvas.height = videoElement.videoHeight;
-                                            
-                                            console.log(' Canvas 初始化:', previewCanvas.width, 'x', previewCanvas.height);
-                                            console.log(' Canvas DOM 属性:', {
-                                                offsetWidth: previewCanvas.offsetWidth,
-                                                offsetHeight: previewCanvas.offsetHeight,
-                                                clientWidth: previewCanvas.clientWidth,
-                                                clientHeight: previewCanvas.clientHeight
-                                            });
-                                            
-                                            // 持续将视频帧绘制到 canvas
-                                            let frameCount = 0;
-                                            const renderVideoToCanvas = () => {
-                                                frameCount++;
-                                                
-                                                if (videoElement.readyState >= 2) {
-                                                    // 每 30 帧输出一次调试信息
-                                                    if (frameCount % 30 === 0) {
-                                                        console.log(`🎨 绘制第 ${frameCount} 帧`);
-                                                        console.log('   videoElement.readyState:', videoElement.readyState);
-                                                        console.log('   videoElement.videoWidth:', videoElement.videoWidth);
-                                                        console.log('   videoElement.currentTime:', videoElement.currentTime);
-                                                    }
-                                                    
-                                                    // 先画红色背景测试
-                                                    previewCtx.fillStyle = '#ff0000';
-                                                    previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
-                                                    
-                                                    // 绘制视频
-                                                    try {
-                                                        previewCtx.drawImage(videoElement, 0, 0, previewCanvas.width, previewCanvas.height);
-                                                        
-                                                        // 在每 30 帧时检查 canvas 内容
-                                                        if (frameCount % 30 === 0) {
-                                                            const imageData = previewCtx.getImageData(100, 100, 1, 1);
-                                                            console.log('   Canvas 像素 (100,100):', `R:${imageData.data[0]} G:${imageData.data[1]} B:${imageData.data[2]}`);
-                                                        }
-                                                    } catch (err) {
-                                                        console.error(' drawImage 失败:', err);
-                                                    }
-                                                    
-                                                    // 画绿色边框
-                                                    previewCtx.strokeStyle = '#00ff00';
-                                                    previewCtx.lineWidth = 10;
-                                                    previewCtx.strokeRect(0, 0, previewCanvas.width, previewCanvas.height);
-                                                } else {
-                                                    if (frameCount % 30 === 0) {
-                                                        console.log(`⏳ 视频未准备好，readyState: ${videoElement.readyState}`);
-                                                    }
-                                                }
-                                                requestAnimationFrame(renderVideoToCanvas);
-                                            };
-                                            renderVideoToCanvas();
-                                            
-                                            console.log(' 已启动 Canvas 视频渲染');
-
-                                            // 播放成功后，强制触发重绘
-                                            videoElement.style.display = 'none';
-                                            requestAnimationFrame(() => {
-                                                videoElement.style.display = 'block';
-                                                console.log(' 强制重绘完成');
-                                                resolve();
-                                            });
-                                        } catch (err) {
-                                            if (attempt < 3) {
-                                                console.log(` 播放尝试 ${attempt} 失败，重试...`);
-                                                setTimeout(() => tryPlay(attempt + 1), 100);
-                                            } else {
-                                                console.error(' 播放失败:', err);
-                                                reject(err);
-                                            }
-                                        }
-                                    };
-                                    
-                                    tryPlay();
-                                };
-                                
-                                videoElement.onerror = (e) => {
-                                    console.error(' 视频元素错误:', e);
-                                    reject(new Error('视频加载失败'));
-                                };
-                                
-                                setTimeout(() => reject(new Error('视频加载超时')), 5000);
-                            } catch (err) {
-                                reject(err);
-                            }
-                        });
+                        videoElement.onloadedmetadata = () => {
+                            console.log('📏 视频元数据已加载，尺寸:', videoElement.videoWidth, 'x', videoElement.videoHeight);
+                            resolve();
+                        };
+                        videoElement.onerror = (e) => reject(new Error('视频元素加载失败'));
+                        setTimeout(() => reject(new Error('视频元数据加载超时')), 5000);
                     });
                     
-                    async function sendFrame() {
+                    // 播放视频
+                    await videoElement.play();
+                    console.log('✅ 视频播放已启动，等待 MediaPipe 处理...');
+                    
+                    // 确保视频元素可见（不要 display:none），以保证 drawImage 能获取帧数据
+                    // 样式已在 CSS 中设置为 opacity:0 + 绝对定位，无需额外操作
+                    
+                    // 启动 MediaPipe 循环
+                    function sendFrame() {
                         if (videoElement.readyState >= 2) {
-                            await hands.send({ image: videoElement });
+                            hands.send({ image: videoElement }).catch(e => console.warn('sendFrame error:', e));
                         }
                         requestAnimationFrame(sendFrame);
                     }
                     sendFrame();
+                    
                 } catch (err) {
                     console.error("❌ 摄像头错误:", err);
-                    console.error("错误名称:", err.name);
-                    console.error("错误消息:", err.message);
-                    
-                    // 根据错误类型提供具体建议
                     let errorMessage = '无法访问摄像头。';
                     
                     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -855,7 +748,6 @@
                         errorMessage = '安全限制：请通过 http://localhost:8080 访问，不要直接双击打开 HTML 文件（file:// 协议）。运行命令：npm run dev';
                     }
                     
-                    // 更新错误屏幕显示
                     errorScreen.querySelector('h2').textContent = '摄像头访问失败';
                     errorScreen.querySelector('p').innerHTML = `
                         <div class="text-left space-y-2">
