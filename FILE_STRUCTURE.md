@@ -60,6 +60,14 @@ magic-canvas-offline/
   - **原因**：运行时生成，不需要版本控制
   - **处理**：已添加到 `.gitignore`
 
+### 5. 环境变量与密钥（严禁提交）
+- `.env`, `.env.*` - 环境变量文件
+- `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.crt` - 证书与私钥
+- `credentials*`, `secrets*` - 凭据文件
+- `.npmrc`, `.yarnrc` - 包管理器配置（可能含 registry 令牌）
+  - **原因**：可能包含密钥、令牌等敏感信息
+  - **处理**：已添加到 `.gitignore`
+
 ---
 
 ## 🗑️ 已删除的文件
@@ -71,16 +79,23 @@ magic-canvas-offline/
   2. 已在主 README.md 中详细说明了 MediaPipe 的使用和版权
   3. 避免混淆，保持项目文档的统一性
 
+### mediapipe/hands_solution_simd_wasm_bin.data
+- **原内容**：0 字节空文件
+- **删除原因**：
+  1. 官方 `@mediapipe/hands` 包中不存在此文件（下载残留）
+  2. `hands.js` 与 SIMD 加载器均不引用该文件，运行时完全不需要
+
 ---
 
 ## 📊 文件大小分析
 
 | 类别 | 文件数量 | 总大小 | 说明 |
 |------|---------|--------|------|
-| **项目代码** | 1 | 19.7 KB | index.html（包含所有逻辑） |
-| **文档** | 2 | 50 KB | README.md + LICENSE |
-| **MediaPipe 模型** | 13 | ~24 MB | WASM + TFLite 模型文件 |
-| **配置文件** | 2 | 1 KB | package.json + .gitignore |
+| **项目代码** | 1 | 37.9 KB | index.html（包含所有逻辑） |
+| **文档** | 2 | 32 KB | README.md + FILE_STRUCTURE.md |
+| **MediaPipe 模型** | 12 | ~23.4 MB | WASM + TFLite 模型文件 |
+| **配置文件** | 2 | 0.8 KB | package.json + .gitignore |
+| **许可证** | 1 | 34.3 KB | LICENSE（GPL-3.0 全文） |
 | **总计** | 18 | ~24 MB | 适合 Git 仓库托管 |
 
 ---

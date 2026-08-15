@@ -1,4 +1,12 @@
 {
+  "name": "magic-canvas-offline",
+  "version": "1.1.0",
+  "description": "基于 MediaPipe Hands 的完全离线手势绘画应用：实时手势识别、粒子绘制、捏合能量爆发，支持鼠标/触摸模式。",
+  "license": "GPL-3.0",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes http-server . -p 8080 -c-1"
+  },
   "dependencies": {
     "@mediapipe/hands": "^0.4.1675469240"
   }

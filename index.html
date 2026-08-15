@@ -3,208 +3,379 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手势识别魔法画板（离线版-骨骼修复）</title>
+    <meta name="description" content="基于 MediaPipe Hands 的完全离线手势识别绘画应用：移动食指绘制粒子轨迹，捏合拇指与食指触发能量爆发，支持鼠标/触摸模式。">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="color-scheme" content="dark">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+    <title>手势识别魔法画板（离线版）</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background-color: #0f172a; 
-            color: white;
-            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+        /* ================= 基础 ================= */
+        :root {
+            --bg: #0f172a;
+            --panel-bg: rgba(15, 23, 42, 0.72);
+            --panel-border: rgba(148, 163, 184, 0.22);
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --accent: #22d3ee;
+            --danger: #f87171;
+            --success: #22c55e;
+            --warn: #facc15;
         }
-        .mirrored { transform: scaleX(-1); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            overflow: hidden;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: system-ui, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
         canvas { display: block; }
-
-        /* 自定义滚动条 */
+        #main-canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+        button { font: inherit; cursor: pointer; border: none; color: inherit; background: none; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
 
-        /* UI 组件样式 */
         .absolute { position: absolute; }
         .inset-0 { top: 0; left: 0; right: 0; bottom: 0; }
         .z-10 { z-index: 10; }
-        .z-20 { z-index: 20; }
-        .z-50 { z-index: 50; }
-        .flex { display: flex; }
-        .flex-col { flex-direction: column; }
-        .justify-between { justify-content: space-between; }
-        .items-start { align-items: flex-start; }
-        .items-end { align-items: flex-end; }
-        .p-6 { padding: 1.5rem; }
-        .p-4 { padding: 1rem; }
-        .p-3 { padding: 0.75rem; }
-        .p-2 { padding: 0.5rem; }
-        .mt-2 { margin-top: 0.5rem; }
-        .mt-4 { margin-top: 1rem; }
-        .mb-4 { margin-bottom: 1rem; }
-        .max-w-md { max-width: 28rem; }
-        .bg-slate-800\/80 { background-color: rgba(30, 41, 59, 0.8); }
-        .bg-indigo-900\/40 { background-color: rgba(49, 46, 129, 0.4); }
-        .bg-slate-700 { background-color: #334155; }
-        .bg-red-500\/20 { background-color: rgba(239, 68, 68, 0.2); }
-        .rounded-lg { border-radius: 0.5rem; }
-        .rounded-xl { border-radius: 0.75rem; }
-        .border { border-width: 1px; }
-        .border-slate-700 { border-color: #334155; }
-        .border-indigo-500\/30 { border-color: rgba(99, 102, 241, 0.3); }
-        .backdrop-blur { backdrop-filter: blur(8px); }
-        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .text-sm { font-size: 0.875rem; }
-        .text-lg { font-size: 1.125rem; }
-        .text-3xl { font-size: 1.875rem; }
-        .font-bold { font-weight: 700; }
-        .font-medium { font-weight: 500; }
-        .italic { font-style: italic; }
-        .text-slate-300 { color: #cbd5e1; }
-        .text-indigo-300 { color: #a5b4fc; }
-        .text-indigo-200\/80 { color: rgba(199, 210, 254, 0.8); }
-        .text-red-400 { color: #f87171; }
-        .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
-        .from-cyan-400 { --tw-gradient-from: #22d3ee; }
-        .to-blue-500 { --tw-gradient-to: #3b82f6; }
-        .bg-clip-text { background-clip: text; }
-        .text-transparent { color: transparent; }
-        .drop-shadow-sm { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.05)); }
-        .hidden { display: none; }
-        .transition-all { transition: all 0.2s ease; }
-        .hover\:bg-slate-600:hover { background-color: #475569; }
-        .hover\:bg-red-500\/40:hover { background-color: rgba(239, 68, 68, 0.4); }
-        .w-3 { width: 0.75rem; }
-        .h-3 { height: 0.75rem; }
-        .rounded-full { border-radius: 9999px; }
-        .bg-yellow-400 { background-color: #facc15; }
-        .bg-green-500 { background-color: #22c55e; }
-        .animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .gap-2 { gap: 0.5rem; }
-        .space-x-4 > :not(:last-child) { margin-right: 1rem; }
-        .space-x-3 > :not(:last-child) { margin-right: 0.75rem; }
-        .w-48 { width: 12rem; }
-        .overflow-hidden { overflow: hidden; }
-        .border-2 { border-width: 2px; }
-        .border-slate-600 { border-color: #475569; }
-        .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .w-full { width: 100%; }
-        .h-full { height: 100%; }
-        .pointer-events-none { pointer-events: none; }
-        .pointer-events-auto { pointer-events: auto; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-        .text-center { text-align: center; }
-        button { cursor: pointer; }
+        .hidden { display: none !important; }
+        .mirrored { transform: scaleX(-1); }
+
+        /* ================= 布局 ================= */
+        #ui-layer {
+            position: absolute; inset: 0; z-index: 20;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 1.25rem 1.5rem;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .top-bar, .bottom-bar {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            gap: 1rem; flex-wrap: wrap;
+            pointer-events: auto;
+        }
+        .bottom-bar { align-items: flex-end; }
+
+        /* ================= 标题区 ================= */
+        .title { font-size: 1.75rem; font-weight: 800; letter-spacing: 0.5px; line-height: 1.3; }
+        .gradient {
+            background: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text; background-clip: text;
+            color: transparent;
+        }
+        .badge {
+            display: inline-block; vertical-align: middle; margin-left: 0.5rem;
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 1px;
+            padding: 0.18rem 0.55rem; border-radius: 999px;
+            color: #67e8f9; border: 1px solid rgba(34, 211, 238, 0.4);
+            background: rgba(34, 211, 238, 0.12);
+        }
+        .subtitle { margin-top: 0.55rem; color: var(--text-dim); font-size: 0.85rem; line-height: 1.8; max-width: 27rem; }
+
+        /* ================= 魔法卡片 ================= */
+        .magic-card {
+            margin-top: 0.85rem; padding: 0.8rem 1rem;
+            background: rgba(49, 46, 129, 0.35);
+            border: 1px solid rgba(129, 140, 248, 0.3);
+            border-radius: 0.75rem;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            max-width: 27rem;
+            animation: fade-in 0.4s ease;
+        }
+        .magic-card h3 { font-size: 1.05rem; color: #c7d2fe; display: flex; align-items: center; gap: 0.4rem; }
+        .magic-card .lore { margin-top: 0.25rem; font-size: 0.82rem; color: rgba(199, 210, 254, 0.75); font-style: italic; line-height: 1.65; }
+        .magic-swatches { display: flex; gap: 0.45rem; margin-top: 0.55rem; align-items: center; }
+        .swatch-label { font-size: 0.72rem; color: var(--text-dim); margin-right: 0.15rem; }
+        .swatch {
+            width: 1.25rem; height: 1.25rem; border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+        }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+        /* ================= 状态面板 ================= */
+        .status-panel {
+            display: flex; align-items: center; gap: 0.8rem;
+            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            padding: 0.65rem 1rem; border-radius: 0.9rem;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25);
+            font-size: 0.85rem;
+        }
+        .dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; background: var(--warn); animation: pulse 2s infinite; }
+        .dot.ready { background: var(--success); animation: none; }
+        .dot.error { background: var(--danger); animation: none; }
+        .status-text { font-weight: 500; }
+        .fps { color: var(--text-dim); font-size: 0.72rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+        /* ================= 按钮 ================= */
+        .controls {
+            display: flex; gap: 0.5rem; flex-wrap: wrap;
+            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            padding: 0.5rem; border-radius: 0.9rem;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        }
+        .btn {
+            padding: 0.5rem 0.9rem; border-radius: 0.6rem;
+            font-size: 0.82rem; font-weight: 500;
+            color: var(--text); background: #334155;
+            transition: background 0.15s ease, transform 0.1s ease, filter 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .btn:hover { background: #475569; }
+        .btn:active { transform: scale(0.97); }
+        .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .btn-primary {
+            color: #fff; font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+        }
+        .btn-primary:hover { filter: brightness(1.12); }
+        .btn-danger { color: var(--danger); background: rgba(239, 68, 68, 0.18); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.38); }
+
+        /* ================= 视频预览 ================= */
+        .video-box {
+            width: 13rem; border-radius: 0.8rem; overflow: hidden;
+            border: 2px solid #475569; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.35);
+            background: #000;
+        }
+        .video-box video { display: block; width: 100%; height: auto; }
+
+        /* ================= 遮罩层 ================= */
+        .overlay {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 0.85rem; padding: 1.5rem; text-align: center;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            transition: opacity 0.4s ease;
+        }
+        .overlay.fade-out { opacity: 0; pointer-events: none; }
+        #loading-screen { z-index: 30; }
+        #error-screen { z-index: 50; }
+        .loader {
+            width: 3rem; height: 3rem; border-radius: 50%;
+            border: 3px solid rgba(34, 211, 238, 0.2); border-top-color: var(--accent);
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .overlay .hint { color: var(--text-dim); font-size: 0.8rem; }
+        .error-icon { font-size: 3rem; line-height: 1; }
+        .error-box { max-width: 30rem; }
+        #error-title { font-size: 1.4rem; }
+        #error-message { color: var(--text-dim); line-height: 1.85; font-size: 0.9rem; white-space: pre-line; }
+        .error-actions { display: flex; gap: 0.7rem; margin-top: 0.6rem; flex-wrap: wrap; justify-content: center; }
+
+        /* ================= 响应式 ================= */
+        @media (max-width: 720px) {
+            #ui-layer { padding: 0.9rem 1rem; }
+            .title { font-size: 1.25rem; }
+            .subtitle { font-size: 0.78rem; }
+            .status-panel { padding: 0.5rem 0.7rem; font-size: 0.78rem; }
+            .btn { padding: 0.45rem 0.7rem; font-size: 0.76rem; }
+            .video-box { width: 10rem; }
+            /* 低端移动设备关闭实时视频上的毛玻璃，降低 GPU 压力 */
+            .status-panel, .controls, .magic-card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+        }
+        @media (max-width: 480px) {
+            .top-bar { flex-direction: column; }
+            .bottom-bar { flex-direction: column; align-items: stretch; }
+            .controls { justify-content: center; }
+            .video-box { align-self: flex-end; }
+        }
     </style>
-    <!-- 本地 MediaPipe 核心库 -->
+    <!-- 本地 MediaPipe 核心库（完全离线，Apache-2.0） -->
     <script src="./mediapipe/hands.js"></script>
 </head>
 <body>
-    <!-- 画布容器 -->
-    <div class="absolute inset-0 z-10 pointer-events-none">
-        <canvas id="main-canvas" class="w-full h-full"></canvas>
+    <!-- 画布层（粒子、骨骼、拖尾） -->
+    <div class="absolute inset-0 z-10">
+        <canvas id="main-canvas"></canvas>
     </div>
 
     <!-- UI 层 -->
-    <div class="absolute inset-0 z-20 flex flex-col justify-between p-6 pointer-events-none">
-        
-        <div class="flex justify-between items-start pointer-events-auto">
+    <div id="ui-layer">
+        <div class="top-bar">
             <div>
-                <h1 class="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                    手势识别魔法画板（离线版）
-                </h1>
-                <p class="mt-2 text-slate-300 max-w-md">
-                    允许浏览器访问摄像头。将手对准镜头：<br/>
-                    ✨ 移动食指进行绘制。<br/>
-                    💥 捏合（拇指+食指）触发能量爆发。
+                <h1 class="title"><span class="gradient">手势识别魔法画板</span><span class="badge">离线版</span></h1>
+                <p class="subtitle">
+                    ✨ 移动食指在空中绘制粒子轨迹<br>
+                    💥 捏合（拇指+食指）触发能量爆发 · 🖱️ 鼠标/触摸同样可绘制
                 </p>
-                <div id="ai-magic-info" class="mt-4 p-3 bg-indigo-900/40 border border-indigo-500/30 rounded-lg hidden backdrop-blur-sm transition-all max-w-md">
-                    <h3 id="magic-name" class="text-lg font-bold text-indigo-300 flex items-center gap-2">
-                        <span>✨</span> <span id="magic-name-text"></span>
-                    </h3>
-                    <p id="magic-lore" class="text-sm text-indigo-200/80 mt-1 italic leading-relaxed"></p>
+                <div id="ai-magic-info" class="magic-card hidden">
+                    <h3><span>✨</span><span id="magic-name-text"></span></h3>
+                    <p id="magic-lore" class="lore"></p>
+                    <div class="magic-swatches">
+                        <span class="swatch-label">绘制</span><span id="swatch-normal" class="swatch" title="普通绘制颜色"></span>
+                        <span class="swatch-label">爆发</span><span id="swatch-pinch" class="swatch" title="捏合爆发颜色"></span>
+                    </div>
                 </div>
             </div>
-            
-            <div id="status-panel" class="bg-slate-800/80 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-lg flex items-center space-x-4">
-                <div id="status-indicator" class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
-                <span id="status-text" class="text-sm font-medium">正在加载 AI 模型...</span>
+
+            <div class="status-panel">
+                <span id="status-indicator" class="dot"></span>
+                <div>
+                    <div id="status-text" class="status-text" role="status" aria-live="polite">正在加载 AI 模型…</div>
+                    <div id="fps-text" class="fps">— FPS</div>
+                </div>
             </div>
         </div>
 
-        <div class="flex justify-between items-end pointer-events-auto">
-            <div class="flex space-x-3 bg-slate-800/80 backdrop-blur p-2 rounded-xl border border-slate-700">
-                <button id="toggle-video" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">显示摄像头</button>
-                <button id="toggle-skeleton" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">隐藏骨骼</button>
-                <button id="clear-canvas" class="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded-lg text-sm transition-colors">清空画板</button>
-                <button id="summon-magic" class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-sm font-bold shadow-lg transition-all flex items-center gap-1">
-                    ✨ 召唤新魔法（离线随机）
-                </button>
+        <div class="bottom-bar">
+            <div class="controls">
+                <button id="toggle-video" class="btn" type="button" aria-pressed="false">📹 显示摄像头</button>
+                <button id="toggle-skeleton" class="btn" type="button" aria-pressed="false">🦴 隐藏骨骼</button>
+                <button id="summon-magic" class="btn btn-primary" type="button">✨ 召唤新魔法</button>
+                <button id="clear-canvas" class="btn btn-danger" type="button">🗑️ 清空画板</button>
             </div>
-            
-            <div id="video-container" class="hidden w-48 rounded-xl overflow-hidden border-2 border-slate-600 shadow-xl">
-                <video id="input-video" class="w-full h-auto mirrored" autoplay playsinline muted></video>
+
+            <div id="video-container" class="video-box hidden">
+                <video id="input-video" class="mirrored" autoplay playsinline muted aria-label="摄像头预览（镜像）"></video>
             </div>
         </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loading-screen" class="overlay" aria-hidden="false">
+        <div class="loader"></div>
+        <p>正在加载 AI 模型…</p>
+        <p class="hint">首次加载约需数秒，请勿关闭页面</p>
     </div>
 
     <!-- 错误遮罩 -->
-    <div id="error-screen" class="hidden absolute inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-        <svg class="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-        <h2 class="text-2xl font-bold mb-2">无法访问摄像头</h2>
-        <p class="text-slate-400 max-w-lg">
-            手势识别需要摄像头权限。请在浏览器提示中点击“允许”，或检查设备设置。
-            <br/><br/>
-            注意：请通过 http://localhost 访问，不要直接双击打开文件。
-        </p>
-        <button onclick="window.location.reload()" class="mt-6 px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-full font-medium transition-colors">
-            刷新重试
-        </button>
+    <div id="error-screen" class="overlay hidden" role="alertdialog" aria-labelledby="error-title" aria-hidden="true">
+        <div class="error-icon">😢</div>
+        <h2 id="error-title">无法访问摄像头</h2>
+        <p id="error-message" class="error-box"></p>
+        <div class="error-actions">
+            <button id="btn-retry" class="btn btn-primary" type="button">🔄 刷新重试</button>
+            <button id="btn-pointer-mode" class="btn" type="button">🖱️ 改用鼠标/触摸绘制</button>
+        </div>
     </div>
 
     <script>
-        // --- DOM 元素 ---
+        'use strict';
+
+        /* ================= DOM 引用 ================= */
         const videoElement = document.getElementById('input-video');
         const canvasElement = document.getElementById('main-canvas');
         const canvasCtx = canvasElement.getContext('2d', { alpha: false });
-        
+
         const statusText = document.getElementById('status-text');
         const statusIndicator = document.getElementById('status-indicator');
+        const fpsText = document.getElementById('fps-text');
+        const loadingScreen = document.getElementById('loading-screen');
         const errorScreen = document.getElementById('error-screen');
+        const errorTitle = document.getElementById('error-title');
+        const errorMessage = document.getElementById('error-message');
         const videoContainer = document.getElementById('video-container');
+        const magicInfoBox = document.getElementById('ai-magic-info');
+        const magicNameText = document.getElementById('magic-name-text');
+        const magicLoreText = document.getElementById('magic-lore');
+        const swatchNormal = document.getElementById('swatch-normal');
+        const swatchPinch = document.getElementById('swatch-pinch');
 
-        // --- 状态 ---
+        const toggleVideoBtn = document.getElementById('toggle-video');
+        const toggleSkeletonBtn = document.getElementById('toggle-skeleton');
+        const clearBtn = document.getElementById('clear-canvas');
+        const summonBtn = document.getElementById('summon-magic');
+        const retryBtn = document.getElementById('btn-retry');
+        const pointerModeBtn = document.getElementById('btn-pointer-mode');
+
+        /* ================= 常量配置 ================= */
+        const BG_COLOR = '#0f172a';
+        const TRAIL_ALPHA = 0.15;             // 拖尾强度（越小拖尾越长）
+        const PINCH_ON = 0.35;                // 捏合进入阈值：指尖距 / 手部尺寸
+        const PINCH_OFF = 0.5;                // 捏合退出阈值（迟滞防抖）
+        const SMOOTH_NORMAL = 0.35;           // 普通绘制位置平滑系数
+        const SMOOTH_PINCH = 0.55;            // 捏合时平滑系数（响应更快）
+        const MAX_PARTICLES = 1600;           // 粒子数量上限（防性能劣化）
+        const MODEL_LOAD_TIMEOUT_MS = 20000;  // 模型加载超时（含摄像头授权等待）
+        const MAX_SEND_ERRORS = 30;           // 连续推理失败次数上限
+
+        /* ================= 运行状态 ================= */
         let showVideo = false;
         let showSkeleton = true;
         let isModelLoaded = false;
+        let pointerMode = false;
+        let cameraStream = null;
+        let handData = null;
+        let lastMagicIdx = -1;
 
-        document.getElementById('toggle-video').addEventListener('click', (e) => {
-            showVideo = !showVideo;
-            videoContainer.classList.toggle('hidden', !showVideo);
-            e.target.textContent = showVideo ? '隐藏摄像头' : '显示摄像头';
-        });
+        const particles = [];            // 粒子池
+        const smoothed = new Map();      // 每只手的平滑绘制位置
+        const pinchState = new Map();    // 每只手的捏合迟滞状态
 
-        document.getElementById('toggle-skeleton').addEventListener('click', (e) => {
-            showSkeleton = !showSkeleton;
-            e.target.textContent = showSkeleton ? '隐藏骨骼' : '显示骨骼';
-        });
+        /* ================= 画布（高 DPI 渲染） ================= */
+        function cssWidth() { return window.innerWidth; }
+        function cssHeight() { return window.innerHeight; }
 
-        // --- 画布尺寸 ---
         function resizeCanvas() {
-            canvasElement.width = window.innerWidth;
-            canvasElement.height = window.innerHeight;
-            canvasCtx.fillStyle = '#0f172a';
-            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            const dpr = Math.min(window.devicePixelRatio || 1, 2); // 上限 2，避免低端设备过载
+            canvasElement.width = Math.round(cssWidth() * dpr);
+            canvasElement.height = Math.round(cssHeight() * dpr);
+            canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            canvasCtx.globalCompositeOperation = 'source-over';
+            canvasCtx.globalAlpha = 1;
+            canvasCtx.fillStyle = BG_COLOR;
+            canvasCtx.fillRect(0, 0, cssWidth(), cssHeight());
         }
-        window.addEventListener('resize', resizeCanvas);
+        let resizeRaf = 0;
+        window.addEventListener('resize', () => {
+            // rAF 节流：窗口拖拽缩放时避免高频重建画布
+            if (resizeRaf) return;
+            resizeRaf = requestAnimationFrame(() => {
+                resizeRaf = 0;
+                resizeCanvas();
+                smoothed.clear();
+                pinchState.clear();
+            });
+        });
         resizeCanvas();
 
-        // --- 魔法颜色 ---
-        let currentMagic = {
-            normalH: 180,
-            normalRange: 40,
-            pinchH: 0,
-            pinchRange: 30
-        };
+        /* ================= 状态辅助 ================= */
+        function setStatus(text, state) {
+            statusText.textContent = text;
+            statusIndicator.className = 'dot' + (state ? ' ' + state : '');
+        }
+        function hideLoading() {
+            loadingScreen.classList.add('fade-out');
+            loadingScreen.setAttribute('aria-hidden', 'true');
+            setTimeout(() => loadingScreen.classList.add('hidden'), 450);
+        }
+        function showError(title, message) {
+            hideLoading();
+            setStatus('出错了', 'error');
+            errorTitle.textContent = title;
+            errorMessage.textContent = message;
+            errorScreen.classList.remove('hidden');
+            errorScreen.setAttribute('aria-hidden', 'false');
+            // 无摄像头/模型异常时，仍可用鼠标或触摸继续绘制
+            pointerModeBtn.classList.remove('hidden');
+            // 键盘可访问性：将焦点移入错误弹窗
+            retryBtn.focus({ preventScroll: true });
+        }
+
+        /* ================= FPS 统计 ================= */
+        let fpsFrames = 0;
+        let fpsLastTime = performance.now();
+        function updateFps(now) {
+            fpsFrames++;
+            if (now - fpsLastTime >= 500) {
+                const fps = Math.round((fpsFrames * 1000) / (now - fpsLastTime));
+                fpsFrames = 0;
+                fpsLastTime = now;
+                fpsText.textContent = fps + ' FPS';
+            }
+        }
+
+        /* ================= 魔法主题 ================= */
+        let currentMagic = { normalH: 180, normalRange: 40, pinchH: 0, pinchRange: 30 };
 
         const offlineMagicThemes = [
             { name: "冰霜凤凰", lore: "远古冰晶凝结成羽，每一次振翅都洒落极光碎屑。", normalH: 200, pinchH: 260 },
@@ -216,42 +387,63 @@
         ];
 
         function randomMagic() {
-            const idx = Math.floor(Math.random() * offlineMagicThemes.length);
-            const theme = offlineMagicThemes[idx];
-            return { themeName: theme.name, lore: theme.lore, normalH: theme.normalH, pinchH: theme.pinchH };
+            if (offlineMagicThemes.length <= 1) return offlineMagicThemes[0];
+            let idx = lastMagicIdx;
+            // 避免连续出现同一主题
+            while (idx === lastMagicIdx) idx = Math.floor(Math.random() * offlineMagicThemes.length);
+            lastMagicIdx = idx;
+            return offlineMagicThemes[idx];
         }
 
-        // --- 粒子系统 ---
-        let particles = [];
+        function applyMagic(theme) {
+            currentMagic.normalH = theme.normalH;
+            currentMagic.pinchH = theme.pinchH;
+            magicNameText.textContent = theme.name;
+            magicLoreText.textContent = theme.lore;
+            swatchNormal.style.background = `hsl(${theme.normalH}, 100%, 60%)`;
+            swatchPinch.style.background = `hsl(${theme.pinchH}, 100%, 60%)`;
+            magicInfoBox.classList.remove('hidden');
+            particles.length = 0;
+        }
+
+        summonBtn.addEventListener('click', () => applyMagic(randomMagic()));
+
+        /* ================= 粒子系统 ================= */
         class Particle {
-            constructor(x, y, isPinching) {
+            constructor(x, y, isPinching, isBurst = false) {
                 this.x = x;
                 this.y = y;
-                const speedMult = isPinching ? 15 : 4;
-                this.vx = (Math.random() - 0.5) * speedMult;
-                this.vy = (Math.random() - 0.5) * speedMult;
-                this.life = 1.0;
-                this.decay = Math.random() * 0.02 + 0.01;
-                if (isPinching) {
-                    const h = currentMagic.pinchH + (Math.random() * currentMagic.pinchRange - currentMagic.pinchRange/2);
-                    this.color = `hsl(${h}, 100%, 60%)`; 
-                    this.size = Math.random() * 6 + 3;
-                } else {
-                    const h = currentMagic.normalH + (Math.random() * currentMagic.normalRange - currentMagic.normalRange/2);
-                    this.color = `hsl(${h}, 100%, 60%)`; 
-                    this.size = Math.random() * 4 + 1;
-                }
+                this.gravity = isBurst ? 0.12 : 0; // 爆发粒子略带重力，形成喷泉弧线
+                const base = isPinching ? (isBurst ? 20 : 15) : 4;
+                const spread = isPinching ? (isBurst ? 18 : 10) : 3;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = base + Math.random() * spread;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1;
+                this.decay = isBurst
+                    ? Math.random() * 0.012 + 0.008
+                    : Math.random() * 0.02 + 0.012;
+                const hBase = isPinching ? currentMagic.pinchH : currentMagic.normalH;
+                const hRange = isPinching ? currentMagic.pinchRange : currentMagic.normalRange;
+                const h = hBase + (Math.random() * hRange - hRange / 2);
+                this.color = `hsl(${h}, 100%, 60%)`;
+                this.size = isPinching
+                    ? Math.random() * 6 + 3
+                    : Math.random() * 3 + 1;
             }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= this.decay;
-                this.vx *= 0.98;
-                this.vy *= 0.98;
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vy += this.gravity * dt;
+                const damp = Math.pow(0.98, dt);
+                this.vx *= damp;
+                this.vy *= damp;
+                this.life -= this.decay * dt;
             }
             draw(ctx) {
                 if (this.life <= 0) return;
-                ctx.globalAlpha = this.life;
+                ctx.globalAlpha = Math.min(this.life * 1.2, 1);
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -259,166 +451,362 @@
             }
         }
 
-        document.getElementById('clear-canvas').addEventListener('click', () => {
-            particles = [];
-            canvasCtx.fillStyle = '#0f172a';
-            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-        });
+        function spawnParticles(x, y, isPinching, isBurst = false) {
+            if (particles.length >= MAX_PARTICLES) return;
+            const count = isBurst ? 28 : (isPinching ? 6 : 2);
+            for (let i = 0; i < count; i++) particles.push(new Particle(x, y, isPinching, isBurst));
+            if (particles.length > MAX_PARTICLES) particles.length = MAX_PARTICLES;
+        }
 
-        const summonBtn = document.getElementById('summon-magic');
-        const magicInfoBox = document.getElementById('ai-magic-info');
-        const magicNameText = document.getElementById('magic-name-text');
-        const magicLoreText = document.getElementById('magic-lore');
-
-        summonBtn.addEventListener('click', () => {
-            const magic = randomMagic();
-            currentMagic.normalH = magic.normalH;
-            currentMagic.pinchH = magic.pinchH;
-            magicNameText.textContent = magic.themeName;
-            magicLoreText.textContent = magic.lore;
-            magicInfoBox.classList.remove('hidden');
-            particles = [];
-        });
-
-        // --- 手部骨骼连接定义 (MediaPipe 标准 21 个关键点) ---
+        /* ================= 手部骨骼（MediaPipe 21 关键点） ================= */
         const HAND_CONNECTIONS = [
-            [0,1],[1,2],[2,3],[3,4], // 拇指
-            [0,5],[5,6],[6,7],[7,8], // 食指
-            [0,9],[9,10],[10,11],[11,12], // 中指
-            [0,13],[13,14],[14,15],[15,16], // 无名指
-            [0,17],[17,18],[18,19],[19,20], // 小指
-            [5,9],[9,13],[13,17] // 手掌内部
+            [0, 1], [1, 2], [2, 3], [3, 4],       // 拇指
+            [0, 5], [5, 6], [6, 7], [7, 8],       // 食指
+            [0, 9], [9, 10], [10, 11], [11, 12],  // 中指
+            [0, 13], [13, 14], [14, 15], [15, 16],// 无名指
+            [0, 17], [17, 18], [18, 19], [19, 20],// 小指
+            [5, 9], [9, 13], [13, 17]             // 手掌内部
         ];
 
-        // --- 绘制骨骼和关键点（自定义，不依赖 drawing_utils）---
-        function drawSkeleton(ctx, landmarks, isPinching, canvasWidth, canvasHeight) {
-            // 绘制连接线
-            ctx.beginPath();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#ffffff40';
-            for (let conn of HAND_CONNECTIONS) {
-                const start = landmarks[conn[0]];
-                const end = landmarks[conn[1]];
-                if (start && end) {
-                    const sx = start.x * canvasWidth;
-                    const sy = start.y * canvasHeight;
-                    const ex = end.x * canvasWidth;
-                    const ey = end.y * canvasHeight;
-                    ctx.beginPath();
-                    ctx.moveTo(sx, sy);
-                    ctx.lineTo(ex, ey);
-                    ctx.stroke();
-                }
+        function drawSkeleton(ctx, lm, isPinching, w, h) {
+            ctx.save();
+            // 摄像头画面为镜像显示，坐标系同步翻转，使骨骼与粒子位置一致
+            ctx.scale(-1, 1);
+            ctx.translate(-w, 0);
+
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = isPinching ? 'rgba(239, 68, 68, 0.9)' : 'rgba(103, 232, 249, 0.55)';
+            for (const [a, b] of HAND_CONNECTIONS) {
+                const p1 = lm[a];
+                const p2 = lm[b];
+                if (!p1 || !p2) continue;
+                ctx.beginPath();
+                ctx.moveTo(p1.x * w, p1.y * h);
+                ctx.lineTo(p2.x * w, p2.y * h);
+                ctx.stroke();
             }
-            // 绘制关键点
-            for (let i = 0; i < landmarks.length; i++) {
-                const pt = landmarks[i];
-                const x = pt.x * canvasWidth;
-                const y = pt.y * canvasHeight;
+            // 关键点（外圈 + 白芯，视觉更精致）
+            for (let i = 0; i < lm.length; i++) {
+                const x = lm[i].x * w;
+                const y = lm[i].y * h;
                 ctx.beginPath();
                 ctx.fillStyle = isPinching ? '#ef4444' : '#06b6d4';
-                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.arc(x, y, 1.2, 0, Math.PI * 2);
                 ctx.fill();
             }
+            ctx.restore();
         }
 
-        let handData = null;
+        /* ================= 单只手的手势处理 ================= */
+        // 以左右手标签作为状态键：MediaPipe 多手结果的数组顺序可能逐帧变化，
+        // 用下标做键会导致双手交叉时状态（平滑位置/捏合迟滞）串扰
+        function handKey(results, i) {
+            const handed = results.multiHandedness && results.multiHandedness[i];
+            if (handed && handed.label) return 'h:' + handed.label;
+            return 'h:' + i;
+        }
 
-        // --- 动画循环 ---
-        function animate() {
-            // 拖尾效果
-            canvasCtx.globalAlpha = 0.15;
-            canvasCtx.fillStyle = '#0f172a';
-            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.globalAlpha = 1.0;
+        function processHand(results, i) {
+            const lm = results.multiHandLandmarks[i];
+            const indexTip = lm[8];
+            const thumbTip = lm[4];
+            const wrist = lm[0];
+            const midMcp = lm[9];
+            // 防御性守卫：任一关键点缺失则跳过本帧，避免拖垮渲染循环
+            if (!indexTip || !thumbTip || !wrist || !midMcp) return;
+            const handIdx = handKey(results, i);
 
-            // 更新粒子
-            for (let i = particles.length-1; i >= 0; i--) {
+            // 镜像坐标：与用户看到的（镜像）摄像头画面一致
+            const rawX = (1 - indexTip.x) * cssWidth();
+            const rawY = indexTip.y * cssHeight();
+
+            // 手部尺寸归一化：指尖距 /（腕部→中指掌指关节距离）
+            // 自适应阈值，手远/手近、不同手型都稳定，不再依赖绝对像素
+            const handScale = Math.hypot(wrist.x - midMcp.x, wrist.y - midMcp.y) || 1e-4;
+            const tipDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+            const pinchRatio = tipDist / handScale;
+
+            // 迟滞判定：进入与退出使用不同阈值，避免临界抖动
+            let st = pinchState.get(handIdx);
+            if (!st) { st = { pinching: false, burstDone: false }; pinchState.set(handIdx, st); }
+            if (!st.pinching && pinchRatio < PINCH_ON) {
+                st.pinching = true;
+                st.burstDone = false;
+            } else if (st.pinching && pinchRatio > PINCH_OFF) {
+                st.pinching = false;
+            }
+
+            // 位置平滑（指数移动平均），减少手部抖动造成的绘制毛刺
+            let sm = smoothed.get(handIdx);
+            if (!sm) { sm = { x: rawX, y: rawY }; smoothed.set(handIdx, sm); }
+            const k = st.pinching ? SMOOTH_PINCH : SMOOTH_NORMAL;
+            sm.x += (rawX - sm.x) * k;
+            sm.y += (rawY - sm.y) * k;
+
+            // 捏合起始瞬间：能量爆发；持续捏合：密集粒子流；普通：稀疏粒子
+            if (st.pinching && !st.burstDone) {
+                st.burstDone = true;
+                spawnParticles(sm.x, sm.y, true, true);
+            } else {
+                spawnParticles(sm.x, sm.y, st.pinching, false);
+            }
+
+            if (showSkeleton) drawSkeleton(canvasCtx, lm, st.pinching, cssWidth(), cssHeight());
+        }
+
+        /* ================= 鼠标 / 触摸绘制 ================= */
+        const activePointers = new Set(); // 记录按下的指针，支持多指同时绘制
+
+        function drawAtPointer(x, y) {
+            if (particles.length >= MAX_PARTICLES) return;
+            particles.push(new Particle(x, y, false));
+        }
+        canvasElement.addEventListener('pointerdown', (e) => {
+            activePointers.add(e.pointerId);
+            drawAtPointer(e.clientX, e.clientY);
+            if (canvasElement.setPointerCapture) {
+                try { canvasElement.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+            }
+        });
+        canvasElement.addEventListener('pointermove', (e) => {
+            if (activePointers.has(e.pointerId)) drawAtPointer(e.clientX, e.clientY);
+        });
+        const releasePointer = (e) => activePointers.delete(e.pointerId);
+        window.addEventListener('pointerup', releasePointer);
+        window.addEventListener('pointercancel', releasePointer);
+        canvasElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        /* ================= 主渲染循环 ================= */
+        let lastFrameTime = performance.now();
+
+        function animate(now) {
+            // 帧间隔归一化到 60fps 基准（上限 2.5 倍防跳帧），
+            // 保证不同刷新率/帧率下粒子物理表现一致
+            const dt = Math.min((now - lastFrameTime) / (1000 / 60), 2.5);
+            lastFrameTime = now;
+
+            // 1. 拖尾：以低透明度重绘背景，旧粒子自然淡出
+            canvasCtx.globalCompositeOperation = 'source-over';
+            canvasCtx.globalAlpha = TRAIL_ALPHA;
+            canvasCtx.fillStyle = BG_COLOR;
+            canvasCtx.fillRect(0, 0, cssWidth(), cssHeight());
+            canvasCtx.globalAlpha = 1;
+
+            // 2. 粒子：加法混合，产生发光叠加效果
+            canvasCtx.globalCompositeOperation = 'lighter';
+            for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                p.update();
+                p.update(dt);
                 p.draw(canvasCtx);
-                if (p.life <= 0) particles.splice(i,1);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+            canvasCtx.globalCompositeOperation = 'source-over';
+            canvasCtx.globalAlpha = 1;
+
+            // 3. 手势交互（鼠标/触摸模式下不再处理摄像头手势）
+            let handCount = 0;
+            if (!pointerMode && handData && handData.multiHandLandmarks) {
+                handCount = handData.multiHandLandmarks.length;
+                for (let i = 0; i < handCount; i++) processHand(handData, i);
+            }
+            if (isModelLoaded && !pointerMode) {
+                const label = handCount > 0 ? `检测到 ${handCount} 只手` : '模型就绪，请伸出手';
+                if (statusText.textContent !== label) setStatus(label, 'ready');
             }
 
-            // 手势交互
-            if (handData && handData.multiHandLandmarks) {
-                const landmarks = handData.multiHandLandmarks;
-                for (let i = 0; i < landmarks.length; i++) {
-                    const lm = landmarks[i];
-                    const indexTip = lm[8];
-                    const thumbTip = lm[4];
-                    
-                    const ix = (1 - indexTip.x) * canvasElement.width;
-                    const iy = indexTip.y * canvasElement.height;
-                    
-                    const dx = indexTip.x - thumbTip.x;
-                    const dy = indexTip.y - thumbTip.y;
-                    const distance = Math.sqrt(dx*dx + dy*dy);
-                    const isPinching = distance < 0.05;
-                    
-                    const particleCount = isPinching ? 10 : 2;
-                    for (let j = 0; j < particleCount; j++) {
-                        particles.push(new Particle(ix, iy, isPinching));
-                    }
-                    
-                    // 绘制骨骼（如果开启）
-                    if (showSkeleton) {
-                        canvasCtx.save();
-                        // 镜像翻转坐标系（因为摄像头是镜像的）
-                        canvasCtx.scale(-1, 1);
-                        canvasCtx.translate(-canvasElement.width, 0);
-                        drawSkeleton(canvasCtx, lm, isPinching, canvasElement.width, canvasElement.height);
-                        canvasCtx.restore();
-                    }
-                }
-            }
+            // 4. FPS
+            updateFps(now);
+
             requestAnimationFrame(animate);
         }
-        animate();
+        requestAnimationFrame(animate);
 
-        // --- MediaPipe 初始化 ---
+        /* ================= 按钮事件 ================= */
+        toggleVideoBtn.addEventListener('click', () => {
+            showVideo = !showVideo;
+            videoContainer.classList.toggle('hidden', !showVideo);
+            toggleVideoBtn.textContent = showVideo ? '📹 隐藏摄像头' : '📹 显示摄像头';
+            toggleVideoBtn.setAttribute('aria-pressed', String(showVideo));
+        });
+
+        toggleSkeletonBtn.addEventListener('click', () => {
+            showSkeleton = !showSkeleton;
+            toggleSkeletonBtn.textContent = showSkeleton ? '🦴 隐藏骨骼' : '🦴 显示骨骼';
+            toggleSkeletonBtn.setAttribute('aria-pressed', String(showSkeleton));
+        });
+
+        clearBtn.addEventListener('click', () => {
+            particles.length = 0;
+            smoothed.clear();
+            pinchState.clear();
+            resizeCanvas();
+        });
+
+        retryBtn.addEventListener('click', () => window.location.reload());
+
+        pointerModeBtn.addEventListener('click', () => {
+            errorScreen.classList.add('hidden');
+            errorScreen.setAttribute('aria-hidden', 'true');
+            pointerMode = true;
+            stopCamera(); // 隐私：退出摄像头模式时立即释放摄像头并停止推理
+            handData = null;
+            setStatus('🖱️ 鼠标/触摸绘制模式', 'ready');
+        });
+
+        /* ================= 摄像头生命周期（隐私） ================= */
+        let sendFrameActive = false;
+
+        function stopCamera() {
+            sendFrameActive = false;
+            if (cameraStream) {
+                cameraStream.getTracks().forEach((t) => t.stop());
+                cameraStream = null;
+            }
+            if (videoElement.srcObject) {
+                videoElement.srcObject = null;
+            }
+            if (showVideo) {
+                showVideo = false;
+                videoContainer.classList.add('hidden');
+                toggleVideoBtn.textContent = '📹 显示摄像头';
+                toggleVideoBtn.setAttribute('aria-pressed', 'false');
+            }
+        }
+
+        window.addEventListener('beforeunload', stopCamera);
+        window.addEventListener('pagehide', stopCamera);
+
+        /* ================= MediaPipe 初始化 ================= */
         function initMediaPipe() {
-            if (typeof Hands === 'undefined') {
-                setTimeout(initMediaPipe, 200);
+            const loadStart = Date.now();
+
+            // hands.js 由 <script src> 同步加载；若加载失败则超时报错，不再无限重试
+            (function waitForLib() {
+                if (typeof Hands !== 'undefined') { setupHands(); return; }
+                if (Date.now() - loadStart > MODEL_LOAD_TIMEOUT_MS) {
+                    console.error('MediaPipe hands.js 加载超时');
+                    showError(
+                        'AI 模型加载失败',
+                        '未能加载 mediapipe/hands.js。\n请确认 mediapipe/ 目录完整，并通过 HTTP 服务器（如 http://localhost:8080）访问。'
+                    );
+                    return;
+                }
+                setTimeout(waitForLib, 200);
+            })();
+        }
+
+        function setupHands() {
+            let hands;
+            try {
+                hands = new Hands({ locateFile: (file) => `./mediapipe/${file}` });
+                hands.setOptions({
+                    maxNumHands: 2,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
+                });
+            } catch (err) {
+                console.error('MediaPipe 初始化失败:', err);
+                showError(
+                    'AI 模型加载失败',
+                    'MediaPipe 初始化失败，请确认 mediapipe/ 目录完整后刷新重试。'
+                );
                 return;
             }
-            const hands = new Hands({ locateFile: (file) => `./mediapipe/${file}` });
-            hands.setOptions({
-                maxNumHands: 2,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.6,
-                minTrackingConfidence: 0.6
-            });
+
+            // 模型初始化看门狗：WASM 缺失/损坏等情况下 onResults 永不触发，
+            // 超时后给出明确错误，而不是让加载页永久转圈
+            const modelWatchdog = setTimeout(() => {
+                if (!isModelLoaded && errorScreen.classList.contains('hidden')) {
+                    stopCamera();
+                    showError(
+                        'AI 模型加载失败',
+                        '模型初始化超时。请确认 mediapipe/ 目录完整后刷新重试，\n或改用鼠标/触摸绘制。'
+                    );
+                }
+            }, MODEL_LOAD_TIMEOUT_MS);
+
             hands.onResults((results) => {
                 if (!isModelLoaded) {
                     isModelLoaded = true;
-                    statusIndicator.className = 'w-3 h-3 rounded-full bg-green-500';
-                    statusText.textContent = '模型就绪，请伸出手';
+                    clearTimeout(modelWatchdog);
+                    hideLoading();
+                    setStatus('模型就绪，请伸出手', 'ready');
                 }
                 handData = results;
+
+                // 清理本帧未出现的手的状态，防止状态泄漏
+                const seen = new Set();
+                if (results.multiHandLandmarks) {
+                    for (let i = 0; i < results.multiHandLandmarks.length; i++) seen.add(handKey(results, i));
+                }
+                for (const key of pinchState.keys()) if (!seen.has(key)) pinchState.delete(key);
+                for (const key of smoothed.keys()) if (!seen.has(key)) smoothed.delete(key);
             });
 
-            async function startCam() {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
-                    videoElement.srcObject = stream;
-                    videoElement.play();
-
-                    async function sendFrame() {
-                        if (videoElement.readyState >= 2) {
-                            await hands.send({ image: videoElement });
-                        }
-                        requestAnimationFrame(sendFrame);
-                    }
-                    sendFrame();
-                } catch (err) {
-                    console.error("摄像头错误:", err);
-                    errorScreen.classList.remove('hidden');
-                }
-            }
-            startCam();
+            startCam(hands);
         }
 
+        async function startCam(hands) {
+            let stream;
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('no-media-devices');
+                }
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: 'user' } },
+                    audio: false
+                });
+            } catch (err) {
+                console.error('摄像头错误:', err);
+                showError(
+                    '无法访问摄像头',
+                    '手势识别需要摄像头权限。请在浏览器提示中点击“允许”，或检查设备设置。\n注意：请通过 http://localhost 或 HTTPS 访问，不要直接双击打开文件。\n\n也可以改用鼠标/触摸模式继续体验。'
+                );
+                return;
+            }
+
+            cameraStream = stream;
+            videoElement.srcObject = stream;
+            videoElement.play().catch(() => {});
+
+            // 推理循环：单帧失败不中断；连续失败则停止摄像头并提示错误
+            sendFrameActive = true;
+            let sendErrors = 0;
+            async function sendFrame() {
+                if (!sendFrameActive) return;
+                if (videoElement.readyState >= 2) {
+                    try {
+                        await hands.send({ image: videoElement });
+                        sendErrors = 0;
+                    } catch (err) {
+                        sendErrors++;
+                        console.warn('推理失败（第 ' + sendErrors + ' 次）:', err);
+                        if (sendErrors >= MAX_SEND_ERRORS) {
+                            // 停止推理与摄像头，并清除陈旧手势数据（防止冻结画面“幽灵”持续绘制）
+                            handData = null;
+                            stopCamera();
+                            showError(
+                                isModelLoaded ? '模型运行异常' : 'AI 模型加载失败',
+                                isModelLoaded
+                                    ? '连续多次推理失败，请刷新页面重试，\n或改用鼠标/触摸绘制。'
+                                    : '模型初始化失败，请确认 mediapipe/ 目录完整后刷新重试，\n或改用鼠标/触摸绘制。'
+                            );
+                            return;
+                        }
+                    }
+                }
+                requestAnimationFrame(sendFrame);
+            }
+            sendFrame();
+        }
+
+        console.log('🎨 手势识别魔法画板（离线版）v1.1.0 — 所有数据仅在本地处理');
         initMediaPipe();
     </script>
 </body>

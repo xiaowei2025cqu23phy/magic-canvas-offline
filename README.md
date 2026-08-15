@@ -23,10 +23,16 @@
 - 🔒 **完全离线运行**：所有资源本地化，无需网络连接即可使用
 - 🖐️ **实时手势追踪**：支持最多 2 只手同时检测，21 个手部关键点精准定位
 - 🎨 **交互式绘画**：移动食指产生粒子轨迹，捏合手指触发能量爆发效果
+- 🧠 **自适应捏合判定**：按手部尺寸归一化距离 + 迟滞防抖，手远手近均稳定识别
+- ✨ **能量爆发特效**：捏合起始瞬间喷射爆发粒子，粒子使用加法混合呈现发光效果
+- 🖱️ **鼠标/触摸模式**：没有摄像头也能用鼠标或手指在画板上绘制
 - ⚡ **高性能推理**：采用 WebAssembly + SIMD 优化，确保流畅的实时检测体验
-- 🌈 **动态魔法主题**：内置多种色彩主题（冰霜凤凰、暗影荆棘、雷霆之心等），可随机切换
+- 🌈 **动态魔法主题**：内置多种色彩主题（冰霜凤凰、暗影荆棘、雷霆之心等），随机切换且不重复
 - 👁️ **可视化骨骼**：可选显示手部骨骼连接和关键点，直观展示检测结果
 - 🎥 **摄像头预览**：可选显示摄像头画面，支持镜像翻转
+- 📊 **实时 FPS 显示**：状态面板实时显示渲染帧率，便于性能监控
+- ✨ **高 DPI 渲染**：自动适配高分屏（Retina），线条清晰不发虚
+- 📱 **响应式布局**：适配手机与平板小屏幕
 - 📜 **强制开源许可**：采用 GPL-3.0 许可证，确保所有衍生作品必须保持开源
 
 ---
@@ -100,8 +106,9 @@ http://localhost:8080
 | 手势动作 | 功能说明 |
 |---------|---------|
 | **移动食指** | 在空中绘制彩色粒子轨迹 |
-| **捏合拇指+食指** | 触发能量爆发效果（粒子数量增加、速度加快） |
+| **捏合拇指+食指** | 触发能量爆发效果（捏合瞬间喷射爆发粒子，持续捏合为密集粒子流） |
 | **双手同时出现** | 两只手都会产生绘制效果 |
+| **鼠标/触摸拖动** | 同样可以绘制粒子轨迹（无摄像头时的备选方案） |
 
 ### 界面控制
 
@@ -137,19 +144,22 @@ http://localhost:8080
 
 ```
 magic-canvas-offline/
-├── mediapipe/                    # MediaPipe 核心运行时文件
-│   ├── hands.js                  # 主接口库（~2MB）
-│   ├── hands_solution_wasm_bin.js          # 标准 WASM 二进制资源
-│   ├── hands_solution_simd_wasm_bin.js     # SIMD 优化版 WASM（性能更高）
-│   ├── hands_solution_packed_assets_loader.js  # 资源加载器
+├── mediapipe/                    # MediaPipe 核心运行时文件（Apache-2.0）
+│   ├── hands.js                  # 主接口库（44 KB）
+│   ├── hands.binarypb            # 二进制协议配置
+│   ├── hands_solution_wasm_bin.js/.wasm          # 标准 WASM 模型
+│   ├── hands_solution_simd_wasm_bin.js/.wasm # SIMD 优化版 WASM（性能更高）
+│   ├── hands_solution_packed_assets_loader.js/.data # 打包资源加载器
+│   ├── hand_landmark_full.tflite / hand_landmark_lite.tflite  # TFLite 模型
 │   ├── index.d.ts                # TypeScript 类型定义
 │   └── package.json              # MediaPipe 包信息
 ├── index.html                    # 主应用页面（含 UI 和业务逻辑）
 ├── package.json                  # 项目依赖管理
-├── package-lock.json             # 依赖锁定文件
 ├── LICENSE                       # GPL-3.0 开源许可证
 └── README.md                     # 项目文档
 ```
+
+> `package-lock.json` 与 `node_modules/` 为本地生成文件，已加入 `.gitignore`，不入库。
 
 ### 工作流程
 
@@ -170,19 +180,32 @@ graph LR
 
 #### 1. 手势识别逻辑
 
+捏合判定使用**手部尺寸归一化**的距离比，并加入**迟滞阈值**防抖：
+
 ```javascript
-// 计算食指指尖(landmark 8)与拇指指尖(landmark 4)的距离
-const dx = indexTip.x - thumbTip.x;
-const dy = indexTip.y - thumbTip.y;
-const distance = Math.sqrt(dx*dx + dy*dy);
-const isPinching = distance < 0.05; // 阈值 0.05
+// 指尖距离：食指指尖(landmark 8)与拇指指尖(landmark 4)
+const tipDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+
+// 手部尺寸：腕部(landmark 0)到中指掌指关节(landmark 9)的距离
+const handScale = Math.hypot(wrist.x - midMcp.x, wrist.y - midMcp.y) || 1e-4;
+
+// 归一化比例（与手到摄像头的距离无关，手远手近同样灵敏）
+const pinchRatio = tipDist / handScale;
+
+// 迟滞判定：进入阈值 0.35，退出阈值 0.5，避免临界抖动
+if (!pinching && pinchRatio < PINCH_ON)  { pinching = true;  }
+else if (pinching && pinchRatio > PINCH_OFF) { pinching = false; }
 ```
+
+同时，绘制位置采用指数移动平均平滑（`sm += (raw - sm) * k`），显著减少手部抖动造成的绘制毛刺。
 
 #### 2. 粒子系统
 
 - **生命周期管理**：每个粒子具有独立的透明度衰减曲线
-- **物理模拟**：速度衰减（摩擦力）、随机运动方向
+- **物理模拟**：速度衰减（摩擦力）、爆发粒子的重力弧线、随机运动方向
 - **颜色动态生成**：基于 HSL 色彩空间的主题化配色
+- **能量爆发**：捏合起始瞬间一次性喷射 28 个爆发粒子，持续捏合为密集粒子流
+- **性能保护**：粒子总量上限 1600，防止长时间绘制导致卡顿
 
 #### 3. 骨骼绘制
 
@@ -200,7 +223,7 @@ const isPinching = distance < 0.05; // 阈值 0.05
 
 ### MediaPipe 模型参数
 
-在 `index.html` 的 `initMediaPipe()` 函数中可以调整：
+在 `index.html` 的 `setupHands()` 函数中可以调整：
 
 ```javascript
 hands.setOptions({
@@ -217,22 +240,21 @@ hands.setOptions({
 
 ### 粒子系统参数
 
+在 `index.html` 的「常量配置」区块中可以调整：
+
 ```javascript
-class Particle {
-    constructor(x, y, isPinching) {
-        const speedMult = isPinching ? 15 : 4;  // 捏合时的速度倍数
-        this.decay = Math.random() * 0.02 + 0.01; // 衰减速率
-        this.size = isPinching ? 
-            Math.random() * 6 + 3 :  // 捏合时粒子更大
-            Math.random() * 4 + 1;   // 正常时粒子较小
-    }
-}
+const TRAIL_ALPHA = 0.15;             // 拖尾强度（越小拖尾越长）
+const PINCH_ON = 0.35;                // 捏合进入阈值：指尖距 / 手部尺寸
+const PINCH_OFF = 0.5;                // 捏合退出阈值（迟滞防抖）
+const SMOOTH_NORMAL = 0.35;           // 普通绘制位置平滑系数
+const SMOOTH_PINCH = 0.55;            // 捏合时平滑系数（响应更快）
+const MAX_PARTICLES = 1600;           // 粒子数量上限（防性能劣化）
 ```
 
 ### 画布拖尾效果
 
 ```javascript
-canvasCtx.globalAlpha = 0.15;  // 调整透明度控制拖尾长度
+canvasCtx.globalAlpha = 0.15;  // 调整透明度控制拖尾长度（TRAIL_ALPHA）
 canvasCtx.fillStyle = '#0f172a'; // 背景色
 ```
 
@@ -318,6 +340,19 @@ hands.setOptions({
 - 保持手部在摄像头视野中心
 - 调整 `minTrackingConfidence` 参数
 
+#### 问题 5：没有摄像头（或摄像头被拒绝）怎么办？
+
+点击错误界面中的「🖱️ 改用鼠标/触摸绘制」按钮，即可用鼠标或手指在画板上绘制粒子轨迹，无需摄像头。
+
+#### 问题 6：AI 模型加载失败
+
+**原因**：`mediapipe/` 目录文件缺失，或未通过 HTTP 服务器访问
+
+**解决方案**：
+- 确认 `mediapipe/` 目录完整（至少包含 `hands.js`、WASM 和 `.data` 文件）
+- 必须通过 `http://localhost` 访问，不能双击打开 `file://` 文件
+- 若错误提示连续推理失败，请刷新页面重试
+
 ---
 
 ## 📊 性能指标
@@ -362,12 +397,22 @@ hands.setOptions({
 - ✅ **无网络传输**：不上传任何数据到云端服务器
 - ✅ **无持久化存储**：不保存摄像头画面或手势记录
 - ✅ **开源透明**：所有代码公开可审计
+- ✅ **无密钥依赖**：本项目不包含、不需要任何 API 密钥、令牌或凭据
 
 ### 安全要求
 
 - **HTTPS 或 localhost**：浏览器要求摄像头访问必须在安全上下文中
 - **用户授权**：每次访问都需要用户明确授予摄像头权限
 - **权限撤销**：用户可随时在浏览器设置中撤销摄像头权限
+- **页面退出自动释放**：离开页面时自动停止摄像头采集
+
+### 仓库安全（提交前请确认）
+
+- `.gitignore` 已忽略 `.env*`、`*.pem`、`*.key`、`credentials*`、`secrets*`、`.npmrc` 等敏感文件
+- 提交前可用以下命令扫描仓库中的潜在密钥：
+  ```bash
+  git grep -n -i -E "api[_-]?key|secret|token|password|BEGIN (RSA|EC|PRIVATE)" -- ':!LICENSE'
+  ```
 
 ---
 
@@ -569,8 +614,8 @@ limitations under the License.
 
 ## 📧 联系方式
 
-- 📬 问题反馈：[GitHub Issues](https://github.com/your-username/magic-canvas-offline/issues)
-- 💬 讨论交流：[GitHub Discussions](https://github.com/your-username/magic-canvas-offline/discussions)
+- 📬 问题反馈：[GitHub Issues](https://github.com/xiaowei2025cqu23phy/magic-canvas-offline/issues)
+- 💬 讨论交流：[GitHub Discussions](https://github.com/xiaowei2025cqu23phy/magic-canvas-offline/discussions)
 
 ---
 

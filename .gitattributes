@@ -1,0 +1,16 @@
+# 统一换行符：文本文件在仓库中一律使用 LF
+* text=auto eol=lf
+
+# 二进制文件（不做换行转换）
+*.wasm binary
+*.tflite binary
+*.data binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.woff binary
+*.woff2 binary
