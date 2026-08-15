@@ -91,7 +91,7 @@ magic-canvas-offline/
 
 | 类别 | 文件数量 | 总大小 | 说明 |
 |------|---------|--------|------|
-| **项目代码** | 1 | 37.9 KB | index.html（包含所有逻辑） |
+| **项目代码** | 1 | 43.6 KB | index.html（包含所有逻辑） |
 | **文档** | 2 | 32 KB | README.md + FILE_STRUCTURE.md |
 | **MediaPipe 模型** | 12 | ~23.4 MB | WASM + TFLite 模型文件 |
 | **配置文件** | 2 | 0.8 KB | package.json + .gitignore |
