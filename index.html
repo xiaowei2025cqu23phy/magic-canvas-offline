@@ -244,7 +244,7 @@
     <div id="loading-screen" class="overlay" aria-hidden="false">
         <div class="loader"></div>
         <p>正在加载 AI 模型…</p>
-        <p class="hint">首次加载约需数秒，请勿关闭页面</p>
+        <p class="hint">首次加载约需数秒；若浏览器弹出摄像头授权提示，请点击“允许”</p>
     </div>
 
     <!-- 错误遮罩 -->
@@ -720,9 +720,11 @@
             }
 
             // 模型初始化看门狗：WASM 缺失/损坏等情况下 onResults 永不触发，
-            // 超时后给出明确错误，而不是让加载页永久转圈
+            // 超时后给出明确错误，而不是让加载页永久转圈。
+            // 仅当摄像头流已建立（授权完成）而模型仍未出结果时才判定超时，
+            // 避免用户尚未处理权限弹窗时被误报"模型初始化超时"
             const modelWatchdog = setTimeout(() => {
-                if (!isModelLoaded && errorScreen.classList.contains('hidden')) {
+                if (!isModelLoaded && cameraStream && errorScreen.classList.contains('hidden')) {
                     stopCamera();
                     showError(
                         'AI 模型加载失败',

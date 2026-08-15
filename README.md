@@ -366,6 +366,8 @@ hands.setOptions({
 | 低端设备 (集成显卡) | 15-25 | ~50ms | 建议使用 Lite 模型 |
 | 移动端 (iPhone 12+) | 25-35 | ~35ms | Safari 需 iOS 14+ |
 
+> 以上为参考值，实际性能随设备型号、光线环境与浏览器版本而异。
+
 ### 优化建议
 
 1. **启用 SIMD**：现代浏览器自动选择 `hands_solution_simd_wasm_bin.js`
