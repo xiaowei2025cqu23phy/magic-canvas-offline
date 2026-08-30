@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="基于 MediaPipe Hands 的完全离线手势识别绘画应用：移动食指绘制粒子轨迹，捏合拇指与食指触发能量爆发，支持鼠标/触摸模式。">
     <meta name="theme-color" content="#0f172a">
     <meta name="color-scheme" content="dark">
@@ -47,6 +47,10 @@
             position: absolute; inset: 0; z-index: 20;
             display: flex; flex-direction: column; justify-content: space-between;
             padding: 1.25rem 1.5rem;
+            padding-top: max(1.25rem, env(safe-area-inset-top));
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+            padding-left: max(1.5rem, env(safe-area-inset-left));
+            padding-right: max(1.5rem, env(safe-area-inset-right));
             pointer-events: none;
             user-select: none;
             -webkit-user-select: none;
@@ -118,6 +122,7 @@
             padding: 0.5rem; border-radius: 0.9rem;
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         }
+        .controls .btn { white-space: nowrap; }
         .btn {
             padding: 0.5rem 0.9rem; border-radius: 0.6rem;
             font-size: 0.82rem; font-weight: 500;
@@ -171,22 +176,65 @@
         #error-message { color: var(--text-dim); line-height: 1.85; font-size: 0.9rem; white-space: pre-line; }
         .error-actions { display: flex; gap: 0.7rem; margin-top: 0.6rem; flex-wrap: wrap; justify-content: center; }
 
-        /* ================= 响应式 ================= */
+        /* ================= 响应式：桌面端 ================= */
+        @media (min-width: 1100px) {
+            #ui-layer { padding: 1.5rem 2rem; }
+            .title { font-size: 1.9rem; }
+            .video-box { width: 16rem; }
+            .controls { gap: 0.65rem; }
+            .btn { padding: 0.58rem 1rem; }
+        }
+
+        /* ================= 响应式：平板与手机 ================= */
         @media (max-width: 720px) {
-            #ui-layer { padding: 0.9rem 1rem; }
-            .title { font-size: 1.25rem; }
-            .subtitle { font-size: 0.78rem; }
-            .status-panel { padding: 0.5rem 0.7rem; font-size: 0.78rem; }
-            .btn { padding: 0.45rem 0.7rem; font-size: 0.76rem; }
-            .video-box { width: 10rem; }
-            /* 低端移动设备关闭实时视频上的毛玻璃，降低 GPU 压力 */
+            #ui-layer {
+                padding: 0.75rem 0.8rem;
+                padding-top: max(0.75rem, env(safe-area-inset-top));
+                padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+                padding-left: max(0.8rem, env(safe-area-inset-left));
+                padding-right: max(0.8rem, env(safe-area-inset-right));
+            }
+            .top-bar, .bottom-bar { gap: 0.6rem; }
+            .top-bar { align-items: stretch; }
+            .title { font-size: 1.2rem; }
+            .badge { font-size: 0.58rem; margin-left: 0.3rem; padding: 0.14rem 0.42rem; }
+            .subtitle { margin-top: 0.35rem; font-size: 0.73rem; line-height: 1.55; max-width: 100%; }
+            .magic-card { margin-top: 0.55rem; padding: 0.62rem 0.75rem; max-width: min(27rem, 100%); }
+            .magic-card h3 { font-size: 0.92rem; }
+            .magic-card .lore { font-size: 0.75rem; }
+            .status-panel {
+                align-self: flex-start;
+                padding: 0.48rem 0.68rem;
+                font-size: 0.76rem;
+                border-radius: 0.7rem;
+            }
+            .video-box { width: min(38vw, 10rem); }
             .status-panel, .controls, .magic-card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .controls { width: 100%; gap: 0.4rem; padding: 0.42rem; }
+            .controls .btn {
+                min-height: 2.75rem;
+                flex: 1 1 calc(50% - 0.4rem);
+                padding: 0.55rem 0.5rem;
+                font-size: 0.74rem;
+            }
+            .controls #summon-magic { flex-basis: 100%; }
+            .bottom-bar { align-items: stretch; }
         }
         @media (max-width: 480px) {
             .top-bar { flex-direction: column; }
+            .top-bar > div:first-child { min-width: 0; }
             .bottom-bar { flex-direction: column; align-items: stretch; }
-            .controls { justify-content: center; }
-            .video-box { align-self: flex-end; }
+            .controls { justify-content: stretch; }
+            .video-box { width: min(42vw, 9rem); align-self: flex-end; }
+            .error-actions { width: 100%; }
+            .error-actions .btn { min-height: 2.75rem; flex: 1 1 100%; }
+        }
+        @media (max-height: 560px) and (orientation: landscape) {
+            #ui-layer { padding-top: max(0.45rem, env(safe-area-inset-top)); padding-bottom: max(0.45rem, env(safe-area-inset-bottom)); }
+            .subtitle, .magic-card { display: none; }
+            .title { font-size: 1rem; }
+            .controls .btn { min-height: 2.35rem; }
+            .video-box { width: 8rem; }
         }
     </style>
     <!-- 本地 MediaPipe 核心库（完全离线，Apache-2.0） -->
